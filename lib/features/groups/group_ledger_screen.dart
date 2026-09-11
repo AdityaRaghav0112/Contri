@@ -15,39 +15,42 @@ class GroupLedgerScreen extends StatefulWidget {
 }
 
 class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
-  // ------------------------------------------------------------
-  // Design system colors
-  // ------------------------------------------------------------
-
-  static const Color surface = Color(0xFFF2FBF9);
-  static const Color surfaceContainerLow = Color(0xFFEDF6F3);
-  static const Color surfaceContainer = Color(0xFFE7F0ED);
-  static const Color surfaceContainerHighest = Color(0xFFDBE4E2);
-
-  static const Color onSurface = Color(0xFF151D1C);
-  static const Color onSurfaceVariant = Color(0xFF3E4947);
+  // ============================================================
+  // COLORS
+  // ============================================================
 
   static const Color primary = Color(0xFF005048);
   static const Color primaryFixed = Color(0xFF9FF2E4);
   static const Color onPrimaryFixed = Color(0xFF00201C);
 
+  static const Color surface = Color(0xFFF2FBF9);
+  static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
+  static const Color surfaceContainerLow = Color(0xFFEDF6F3);
+  static const Color surfaceContainer = Color(0xFFE7F0ED);
+  static const Color surfaceContainerHigh = Color(0xFFE1EAE7);
+  static const Color surfaceContainerHighest = Color(0xFFDBE4E2);
+
   static const Color secondaryContainer = Color(0xFFCAE5E0);
   static const Color onSecondaryContainer = Color(0xFF4E6763);
 
-  static const Color tertiaryFixed = Color(0xFFCCE5FF);
-  static const Color onTertiaryFixed = Color(0xFF001E31);
+  static const Color onSurface = Color(0xFF151D1C);
+  static const Color onSurfaceVariant = Color(0xFF3E4947);
 
   static const Color error = Color(0xFFBA1A1A);
   static const Color errorContainer = Color(0xFFFFDAD6);
 
+  static const Color tertiaryFixed = Color(0xFFCCE5FF);
+  static const Color onTertiaryFixed = Color(0xFF001E31);
+
   static const Color secondary = Color(0xFF4A635F);
 
-  // ------------------------------------------------------------
-  // Filter state
-  // ------------------------------------------------------------
+  // ============================================================
+  // STATE
+  // ============================================================
 
   int _selectedFilter = 0;
-  final Set<String> _settledMembers = <String>{};
+
+  final Set<String> _settledMembers = {};
 
   final List<String> _filters = [
     'All',
@@ -62,9 +65,9 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
     return Scaffold(
       backgroundColor: surface,
 
-      // --------------------------------------------------------
-      // App bar
-      // --------------------------------------------------------
+      // ==========================================================
+      // APP BAR
+      // ==========================================================
 
       appBar: AppBar(
         backgroundColor: surface,
@@ -73,12 +76,10 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
         titleSpacing: 0,
 
         leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
           icon: const Icon(
             Icons.arrow_back,
-            size: 28,
+            size: 27,
           ),
         ),
 
@@ -98,7 +99,7 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
               ),
             ),
 
-            const SizedBox(width: 8),
+            const SizedBox(width: 9),
 
             Expanded(
               child: Text(
@@ -120,7 +121,7 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
             onPressed: () {},
             icon: const Icon(
               Icons.more_vert,
-              size: 23,
+              size: 24,
             ),
           ),
 
@@ -130,7 +131,7 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
               width: 36,
               height: 36,
               decoration: const BoxDecoration(
-                color: Color(0xFFCAE5E0),
+                color: secondaryContainer,
                 shape: BoxShape.circle,
               ),
               child: const Center(
@@ -138,8 +139,8 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
                   'AR',
                   style: TextStyle(
                     color: primary,
-                    fontWeight: FontWeight.w700,
                     fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -148,9 +149,9 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
         ],
       ),
 
-      // --------------------------------------------------------
-      // Main content
-      // --------------------------------------------------------
+      // ==========================================================
+      // BODY
+      // ==========================================================
 
       body: SafeArea(
         top: false,
@@ -159,29 +160,29 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
             SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
                 14,
-                0,
+                4,
                 14,
-                88,
+                90,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildGroupSummaryCard(),
+                  _buildGroupPositionCard(),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 18),
 
                   _buildMemberBalances(),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
                   _buildActivityLedger(),
                 ],
               ),
             ),
 
-            // --------------------------------------------------
-            // Add expense FAB
-            // --------------------------------------------------
+            // ====================================================
+            // ADD EXPENSE
+            // ====================================================
 
             Positioned(
               right: 16,
@@ -195,219 +196,183 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
   }
 
   // ============================================================
-  // GROUP SUMMARY CARD
+  // GROUP POSITION CARD
+  //
+  // This is the same visual style as the card from the Groups
+  // screen, but its numbers belong ONLY to the current group.
   // ============================================================
 
-  Widget _buildGroupSummaryCard() {
+  Widget _buildGroupPositionCard() {
+    final details = _groupDetails();
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: surfaceContainerLow,
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ambient background circle
-          Positioned(
-            right: -48,
-            top: -48,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                color: secondaryContainer.withValues(alpha: 0.4),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
+          // ------------------------------------------------------
+          // HEADER
+          // ------------------------------------------------------
 
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              // ----------------------------------------------
-              // Category + settings
-              // ----------------------------------------------
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: secondaryContainer,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.theater_comedy,
-                                size: 12,
-                                color: onSecondaryContainer,
-                              ),
-                              SizedBox(width: 3),
-                              Text(
-                                'WEEKEND & LEISURE',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  letterSpacing: 0.4,
-                                  fontWeight: FontWeight.w600,
-                                  color: onSecondaryContainer,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 5),
-
-                        const Text(
-                          'Movie & Weekend Getaway',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 22,
-                            height: 1.15,
-                            fontWeight: FontWeight.w600,
-                            color: onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 4),
-
-                  IconButton(
-                    onPressed: () {},
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(
-                      Icons.settings_outlined,
-                      size: 21,
-                      color: onSurfaceVariant,
-                    ),
-                  ),
-                ],
+              const Text(
+                'GROUP POSITION',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 0.8,
+                  fontWeight: FontWeight.w600,
+                  color: onSurfaceVariant,
+                ),
               ),
 
-              const SizedBox(height: 12),
-
-              // ----------------------------------------------
-              // Financial status
-              // ----------------------------------------------
+              const Spacer(),
 
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: surfaceContainer,
-                  borderRadius: BorderRadius.circular(14),
+                  color: secondaryContainer,
+                  borderRadius: BorderRadius.circular(30),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Group Total Spend',
-                          style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 0.3,
-                            color: onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          '\$390.00',
-                          style: TextStyle(
-                            fontSize: 22,
-                            height: 1.2,
-                            fontWeight: FontWeight.w700,
-                            color: onSurface,
-                          ),
-                        ),
-                      ],
+                    const Icon(
+                      Icons.trending_up,
+                      size: 13,
+                      color: onSecondaryContainer,
                     ),
-
-                    const SizedBox(width: 8),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: primaryFixed,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.arrow_downward,
-                                size: 14,
-                                color: onPrimaryFixed,
-                              ),
-                              SizedBox(width: 3),
-                              Text(
-                                'You are owed \$120.00',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: onPrimaryFixed,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 4),
-
-                      ],
+                    const SizedBox(width: 4),
+                    Text(
+                      details.activeStatus,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: onSecondaryContainer,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
 
-              const SizedBox(height: 12),
+          const SizedBox(height: 17),
 
-              // ----------------------------------------------
-              // Member avatars
-              // ----------------------------------------------
+          // ------------------------------------------------------
+          // MAIN BALANCE
+          // ------------------------------------------------------
 
-              _buildMemberAvatarStack(),
+          Text(
+            details.netPositive
+                ? 'You are owed'
+                : 'You owe',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w400,
+              color: onSurface,
+            ),
+          ),
 
-              const SizedBox(height: 12),
+          const SizedBox(height: 1),
 
-              // ----------------------------------------------
-              // Settle button
-              // ----------------------------------------------
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                details.netAmount,
+                style: TextStyle(
+                  fontSize: 36,
+                  height: 1.05,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -1,
+                  color: details.netPositive
+                      ? primary
+                      : error,
+                ),
+              ),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionButton(
-                      label: 'Settle Up',
-                      icon: Icons.payments_outlined,
-                      backgroundColor: primary,
-                      foregroundColor: Colors.white,
-                    ),
+              const SizedBox(width: 7),
+
+              Padding(
+                padding: const EdgeInsets.only(
+                  bottom: 4,
+                ),
+                child: Text(
+                  details.balanceDescription,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: onSurfaceVariant,
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+
+          // ------------------------------------------------------
+          // TWO BALANCE CARDS
+          // ------------------------------------------------------
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildBalanceSummary(
+                  icon: Icons.arrow_downward,
+                  label: 'You owe',
+                  amount: details.youOwe,
+                  positive: false,
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              Expanded(
+                child: _buildBalanceSummary(
+                  icon: Icons.arrow_upward,
+                  label: 'You are owed',
+                  amount: details.youAreOwed,
+                  positive: true,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // ------------------------------------------------------
+          // ACTIONS
+          // ------------------------------------------------------
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildPrimaryAction(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Settle All',
+                  onTap: () {
+                    _showSettleAllDialog();
+                  },
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              Expanded(
+                child: _buildSecondaryAction(
+                  icon: Icons.file_download_outlined,
+                  label: 'Export Sheet',
+                  onTap: () {},
+                ),
               ),
             ],
           ),
@@ -417,151 +382,222 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
   }
 
   // ============================================================
-  // MEMBER AVATARS
+  // BALANCE SUMMARY
   // ============================================================
 
-  Widget _buildMemberAvatarStack() {
-    final avatars = [
-      ('You', const Color(0xFFE7C8A8)),
-      ('A', const Color(0xFFC8B58E)),
-      ('M', const Color(0xFF73877D)),
-      ('S', const Color(0xFF59655E)),
-    ];
-
-    return Row(
-      children: [
-        SizedBox(
-          width: 100,
-          height: 36,
-          child: Stack(
+  Widget _buildBalanceSummary({
+    required IconData icon,
+    required String label,
+    required String amount,
+    required bool positive,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 11,
+      ),
+      decoration: BoxDecoration(
+        color: surfaceContainer,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              for (int i = 0; i < avatars.length; i++)
-                Positioned(
-                  left: i * 22.0,
-                  top: 1,
-                  child: _buildAvatar(
-                    label: avatars[i].$1,
-                    backgroundColor: avatars[i].$2,
-                    size: 34,
-                    showOnline: i == 0,
-                  ),
-                ),
+              Icon(
+                icon,
+                size: 14,
+                color: positive ? primary : error,
+              ),
 
-              Positioned(
-                left: 78,
-                top: 1,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: surfaceContainerHighest,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: surfaceContainerLow,
-                      width: 2,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.person_add_outlined,
-                    size: 16,
-                    color: onSurfaceVariant,
-                  ),
+              const SizedBox(width: 4),
+
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: positive ? primary : error,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            amount,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: positive ? primary : error,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // PRIMARY ACTION
+  // ============================================================
+
+  Widget _buildPrimaryAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: primary,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildAvatar({
-    required String label,
-    required Color backgroundColor,
-    required double size,
-    bool showOnline = false,
-  }) {
-    return Stack(
-      children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: surfaceContainerLow,
-              width: 2,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: onSurface,
-                fontSize: size * 0.30,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-
-        if (showOnline)
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: 13,
-              height: 13,
-              decoration: BoxDecoration(
-                color: primary,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: surfaceContainerLow,
-                  width: 2,
-                ),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 
   // ============================================================
-  // ACTION BUTTON
+  // SECONDARY ACTION
   // ============================================================
 
-  Widget _buildActionButton({
-    required String label,
+  Widget _buildSecondaryAction({
     required IconData icon,
-    required Color backgroundColor,
-    required Color foregroundColor,
+    required String label,
+    required VoidCallback onTap,
   }) {
-    return SizedBox(
-      height: 44,
-      child: FilledButton.icon(
-        onPressed: () {},
-        style: FilledButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: surfaceContainer,
             borderRadius: BorderRadius.circular(30),
           ),
-        ),
-        icon: Icon(
-          icon,
-          size: 17,
-        ),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: onSurfaceVariant,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  // ============================================================
+  // GROUP DATA
+  // ============================================================
+
+  _GroupDetails _groupDetails() {
+    switch (widget.groupName) {
+      case 'Weekend Kyoto Trip':
+        return const _GroupDetails(
+          netPositive: true,
+          netAmount: '₹45.00',
+          youOwe: '₹0.00',
+          youAreOwed: '₹45.00',
+          balanceDescription: 'from 1 member',
+          memberCount: 3,
+          totalSpent: '₹680.00',
+          category: 'Travel',
+          activeStatus: 'Settlements Active',
+        );
+
+      case 'Flatmates 402':
+        return const _GroupDetails(
+          netPositive: false,
+          netAmount: '₹80.00',
+          youOwe: '₹80.00',
+          youAreOwed: '₹0.00',
+          balanceDescription: 'to 2 members',
+          memberCount: 4,
+          totalSpent: '₹1,420.00',
+          category: 'Home',
+          activeStatus: 'Settlements Active',
+        );
+
+      case 'Movie Night & Snacks':
+        return const _GroupDetails(
+          netPositive: true,
+          netAmount: '₹120.00',
+          youOwe: '₹0.00',
+          youAreOwed: '₹120.00',
+          balanceDescription: 'from 2 members',
+          memberCount: 3,
+          totalSpent: '₹390.00',
+          category: 'Leisure',
+          activeStatus: 'Settlements Active',
+        );
+
+      case 'Road Trip & Gas':
+        return const _GroupDetails(
+          netPositive: true,
+          netAmount: '₹18.50',
+          youOwe: '₹0.00',
+          youAreOwed: '₹18.50',
+          balanceDescription: 'from 1 member',
+          memberCount: 5,
+          totalSpent: '₹1,080.00',
+          category: 'Trip',
+          activeStatus: 'Settlements Active',
+        );
+
+      default:
+        return const _GroupDetails(
+          netPositive: true,
+          netAmount: '₹0.00',
+          youOwe: '₹0.00',
+          youAreOwed: '₹0.00',
+          balanceDescription: 'no outstanding balance',
+          memberCount: 0,
+          totalSpent: '₹0.00',
+          category: 'Group',
+          activeStatus: 'Settlements Active',
+        );
+    }
   }
 
   // ============================================================
@@ -575,23 +611,23 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Member Balances',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 19,
                   fontWeight: FontWeight.w600,
                   color: onSurface,
                 ),
               ),
 
-              Text(
+              const Spacer(),
+
+              const Text(
                 '3 of 4 involved',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  letterSpacing: 0.5,
-                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.4,
                   color: primary,
                 ),
               ),
@@ -599,194 +635,203 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 9),
 
-        _buildBalanceCard(
+        _buildMemberBalanceCard(
           name: 'Alex Rivera',
-          amount: 'Owes you \$70.00',
-          avatarLabel: 'A',
+          avatar: 'A',
           avatarColor: const Color(0xFFBFA77D),
-          status: _balanceStatusFor('Alex Rivera'),
+          amount: 'Owes you ₹70.00',
+          settled: _settledMembers.contains('Alex Rivera'),
         ),
 
         const SizedBox(height: 8),
 
-        _buildBalanceCard(
+        _buildMemberBalanceCard(
           name: 'Maya Lin',
-          amount: 'Owes you \$50.00',
-          avatarLabel: 'M',
+          avatar: 'M',
           avatarColor: const Color(0xFF879B8C),
-          status: _balanceStatusFor('Maya Lin'),
+          amount: 'Owes you ₹50.00',
+          settled: _settledMembers.contains('Maya Lin'),
         ),
 
         const SizedBox(height: 8),
 
-        _buildBalanceCard(
+        _buildMemberBalanceCard(
           name: 'Sam Chen',
-          amount: 'Settled up · \$0.00',
-          avatarLabel: 'S',
+          avatar: 'S',
           avatarColor: const Color(0xFF69716E),
-          status: BalanceStatus.settled,
+          amount: 'Settled up · ₹0.00',
+          settled: true,
         ),
       ],
     );
   }
 
-  BalanceStatus _balanceStatusFor(String name) {
-    return _settledMembers.contains(name)
-        ? BalanceStatus.settled
-        : BalanceStatus.owes;
-  }
-
-  Widget _buildBalanceCard({
+  Widget _buildMemberBalanceCard({
     required String name,
-    required String amount,
-    required String avatarLabel,
+    required String avatar,
     required Color avatarColor,
-    required BalanceStatus status,
+    required String amount,
+    required bool settled,
   }) {
-    final bool settled = status == BalanceStatus.settled;
-
-    return Dismissible(
-      key: ValueKey(name),
-      direction: settled
-          ? DismissDirection.none
-          : DismissDirection.startToEnd,
-      confirmDismiss: (_) async {
-        if (!settled) {
-          setState(() {
-            _settledMembers.add(name);
-          });
-        }
-        return false;
-      },
-      background: Container(
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 18),
-        decoration: BoxDecoration(
-          color: primaryFixed,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle_outline, color: onPrimaryFixed, size: 20),
-            SizedBox(width: 6),
-            Text(
-              'Settle balance',
-              style: TextStyle(
-                color: onPrimaryFixed,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: surfaceContainerLow,
+        borderRadius: BorderRadius.circular(15),
       ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: settled
-              ? surfaceContainerLow.withValues(alpha: 0.6)
-              : surfaceContainerLow,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            _buildAvatar(
-              label: avatarLabel,
-              backgroundColor: avatarColor,
-              size: 38,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: avatarColor,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: settled
-                          ? FontWeight.w500
-                          : FontWeight.w600,
-                      color: onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    settled ? 'Settled up · \$0.00' : amount,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: settled ? onSurfaceVariant : primary,
-                      fontWeight: settled
-                          ? FontWeight.w400
-                          : FontWeight.w500,
-                    ),
-                  ),
-                ],
+            alignment: Alignment.center,
+            child: Text(
+              avatar,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: onSurface,
               ),
             ),
-            const SizedBox(width: 8),
-            _buildBalanceAction(status),
-          ],
-        ),
+          ),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: onSurface,
+                  ),
+                ),
+
+                const SizedBox(height: 2),
+
+                Text(
+                  settled
+                      ? 'Settled up · ₹0.00'
+                      : amount,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color:
+                        settled ? onSurfaceVariant : primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (settled)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: surfaceContainer,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: const Text(
+                'All clear',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: onSurfaceVariant,
+                ),
+              ),
+            )
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _smallActionButton(
+                  label: 'Remind',
+                  icon: Icons.send_outlined,
+                  onTap: () {},
+                  filled: true,
+                ),
+
+                const SizedBox(width: 6),
+
+                _smallActionButton(
+                  label: 'Settle',
+                  icon: Icons.check,
+                  onTap: () {
+                    setState(() {
+                      _settledMembers.add(name);
+                    });
+                  },
+                  filled: false,
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildBalanceAction(BalanceStatus status) {
-    switch (status) {
-      case BalanceStatus.owes:
-        return Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 11),
+  Widget _smallActionButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool filled,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          height: 30,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 9,
+          ),
           decoration: BoxDecoration(
-            color: primaryFixed,
+            color: filled
+                ? primaryFixed
+                : surfaceContainer,
             borderRadius: BorderRadius.circular(30),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.send_outlined,
-                size: 14,
-                color: onPrimaryFixed,
+                icon,
+                size: 12,
+                color: filled
+                    ? onPrimaryFixed
+                    : onSurfaceVariant,
               ),
-              SizedBox(width: 4),
+
+              const SizedBox(width: 3),
+
               Text(
-                'Remind',
+                label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: onPrimaryFixed,
+                  color: filled
+                      ? onPrimaryFixed
+                      : onSurfaceVariant,
                 ),
               ),
             ],
           ),
-        );
-
-      case BalanceStatus.settled:
-        return Container(
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: surfaceContainer,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: const Center(
-            child: Text(
-              'All clear',
-              style: TextStyle(
-                fontSize: 10,
-                color: onSurfaceVariant,
-              ),
-            ),
-          ),
-        );
-    }
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -800,22 +845,22 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Activity Ledger',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 19,
                   fontWeight: FontWeight.w600,
                   color: onSurface,
                 ),
               ),
 
+              const Spacer(),
+
               const Text(
                 'October 2024',
                 style: TextStyle(
                   fontSize: 11,
-                  letterSpacing: 0.5,
                   color: onSurfaceVariant,
                 ),
               ),
@@ -823,21 +868,15 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
           ),
         ),
 
-        const SizedBox(height: 6),
-
-        // ----------------------------------------------
-        // Horizontal filters
-        // ----------------------------------------------
+        const SizedBox(height: 7),
 
         SizedBox(
           height: 34,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(vertical: 1),
             itemCount: _filters.length,
-            separatorBuilder: (_, _) {
-              return const SizedBox(width: 6);
-            },
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: 6),
             itemBuilder: (context, index) {
               return _buildFilterChip(
                 label: _filters[index],
@@ -852,23 +891,19 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
           ),
         ),
 
-        const SizedBox(height: 6),
-
-        // ----------------------------------------------
-        // Expenses
-        // ----------------------------------------------
+        const SizedBox(height: 8),
 
         _buildExpenseCard(
           icon: Icons.confirmation_number,
           iconBackground: secondaryContainer,
           iconColor: onSecondaryContainer,
           title: 'IMAX 3D Movie Tickets',
-          amount: '+\$200.00',
+          amount: '+₹200.00',
           amountColor: primary,
           payer: 'You',
-          total: '\$300.00 total',
+          total: '₹300.00 total',
           split: 'Split 3 ways',
-          balanceText: 'You lent \$200.00 (\$100/ea)',
+          balanceText: 'You lent ₹200.00 (₹100/ea)',
           balanceIcon: Icons.arrow_outward,
           balanceColor: primary,
           balanceBackground: surfaceContainer,
@@ -882,15 +917,16 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
           iconBackground: tertiaryFixed,
           iconColor: onTertiaryFixed,
           title: 'Popcorn, Soda & Nachos Combo',
-          amount: '-\$30.00',
+          amount: '-₹30.00',
           amountColor: error,
           payer: 'Alex Rivera',
-          total: '\$90.00 total',
+          total: '₹90.00 total',
           split: 'Split 3 ways',
-          balanceText: 'You owe \$30.00',
+          balanceText: 'You owe ₹30.00',
           balanceIcon: Icons.call_made,
           balanceColor: error,
-          balanceBackground: errorContainer.withValues(alpha: 0.4),
+          balanceBackground:
+              errorContainer.withValues(alpha: 0.4),
           time: 'Today, 7:45 PM',
         ),
 
@@ -901,7 +937,7 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
           iconBackground: surfaceContainerHighest,
           iconColor: onSurfaceVariant,
           title: 'Uber Ride Home',
-          amount: '\$45.00',
+          amount: '₹45.00',
           amountColor: onSurfaceVariant,
           payer: 'Maya Lin',
           total: null,
@@ -917,6 +953,10 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
     );
   }
 
+  // ============================================================
+  // FILTER CHIP
+  // ============================================================
+
   Widget _buildFilterChip({
     required String label,
     required bool selected,
@@ -926,8 +966,9 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 11),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 11,
+        ),
         decoration: BoxDecoration(
           color: selected
               ? secondaryContainer
@@ -945,11 +986,11 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
               ),
               const SizedBox(width: 4),
             ],
+
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                letterSpacing: 0.5,
                 fontWeight: FontWeight.w500,
                 color: selected
                     ? onSecondaryContainer
@@ -984,23 +1025,18 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
     bool settled = false,
   }) {
     return Opacity(
-      opacity: settled ? 0.9 : 1,
+      opacity: settled ? 0.88 : 1,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: settled
-              ? surfaceContainerLow.withValues(alpha: 0.6)
-              : surfaceContainerLow,
-              borderRadius: BorderRadius.circular(14),
+          color: surfaceContainerLow,
+          borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
-            // --------------------------------------------
-            // Expense icon
-            // --------------------------------------------
-
             Container(
               width: 40,
               height: 40,
@@ -1017,16 +1053,14 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
 
             const SizedBox(width: 10),
 
-            // --------------------------------------------
-            // Expense content
-            // --------------------------------------------
-
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
@@ -1086,10 +1120,6 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
 
                   const SizedBox(height: 8),
 
-                  // ----------------------------------------
-                  // Balance / settlement row
-                  // ----------------------------------------
-
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -1110,14 +1140,16 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
                                 size: 13,
                                 color: balanceColor,
                               ),
+
                               const SizedBox(width: 3),
+
                               Flexible(
                                 child: Text(
                                   balanceText,
-                                  overflow: TextOverflow.ellipsis,
+                                  overflow:
+                                      TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 10,
-                                    letterSpacing: 0.4,
                                     fontWeight: FontWeight.w500,
                                     color: balanceColor,
                                   ),
@@ -1133,7 +1165,6 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
                           time,
                           style: const TextStyle(
                             fontSize: 10,
-                            letterSpacing: 0.4,
                             color: onSurfaceVariant,
                           ),
                         ),
@@ -1150,7 +1181,7 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
   }
 
   // ============================================================
-  // ADD EXPENSE
+  // ADD EXPENSE BUTTON
   // ============================================================
 
   Widget _buildAddExpenseButton() {
@@ -1161,10 +1192,12 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+          ),
           decoration: BoxDecoration(
             color: primaryFixed,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.12),
@@ -1181,13 +1214,12 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
                 size: 21,
                 color: onPrimaryFixed,
               ),
-              SizedBox(width: 8),
+              SizedBox(width: 7),
               Text(
                 'Add expense',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 0.1,
                   color: onPrimaryFixed,
                 ),
               ),
@@ -1197,13 +1229,63 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // SETTLE ALL DIALOG
+  // ============================================================
+
+  void _showSettleAllDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Settle all balances?'),
+          content: Text(
+            'This will start the settlement process for '
+            '${widget.groupName}.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 // ================================================================
-// BALANCE STATUS
+// GROUP DETAILS
 // ================================================================
 
-enum BalanceStatus {
-  owes,
-  settled,
+class _GroupDetails {
+  final bool netPositive;
+  final String netAmount;
+  final String youOwe;
+  final String youAreOwed;
+  final String balanceDescription;
+  final int memberCount;
+  final String totalSpent;
+  final String category;
+  final String activeStatus;
+
+  const _GroupDetails({
+    required this.netPositive,
+    required this.netAmount,
+    required this.youOwe,
+    required this.youAreOwed,
+    required this.balanceDescription,
+    required this.memberCount,
+    required this.totalSpent,
+    required this.category,
+    required this.activeStatus,
+  });
 }

@@ -4,28 +4,41 @@ import '../groups/group_ledger_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  // ------------------------------------------------------------
+  // Design system colors
+  // ------------------------------------------------------------
+
   static const Color primary = Color(0xFF005048);
   static const Color primaryContainer = Color(0xFF006A60);
+  static const Color primaryFixed = Color(0xFF9FF2E4);
+  static const Color onPrimaryFixed = Color(0xFF00201C);
 
   static const Color surface = Color(0xFFF2FBF9);
   static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
   static const Color surfaceContainerLow = Color(0xFFEDF6F3);
   static const Color surfaceContainer = Color(0xFFE7F0ED);
   static const Color surfaceContainerHigh = Color(0xFFE1EAE7);
+
   static const Color secondaryContainer = Color(0xFFCAE5E0);
 
   static const Color onSurface = Color(0xFF151D1C);
   static const Color onSurfaceVariant = Color(0xFF3E4947);
 
   static const Color error = Color(0xFFBA1A1A);
+  static const Color errorContainer = Color(0xFFFFDAD6);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: surface,
 
+      // ----------------------------------------------------------
+      // App bar
+      // ----------------------------------------------------------
+
       appBar: AppBar(
         backgroundColor: surface,
+        elevation: 0,
         titleSpacing: 16,
 
         title: Row(
@@ -63,47 +76,44 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.search),
             iconSize: 25,
           ),
-
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.notifications_none),
             iconSize: 27,
           ),
-
           const SizedBox(width: 8),
         ],
       ),
+
+      // ----------------------------------------------------------
+      // Body
+      // ----------------------------------------------------------
 
       body: Stack(
         children: [
           SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               16,
-              0,
+              8,
               16,
               110,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
-
-                _buildBalanceOverview(),
-
-                const SizedBox(height: 28),
-
                 _buildGroupsHeader(),
 
                 const SizedBox(height: 12),
 
+                // Weekend Kyoto Trip
                 _buildGroupCard(
                   context,
                   icon: Icons.flight_takeoff,
                   iconBackground: secondaryContainer,
                   title: 'Weekend Kyoto Trip',
                   category: 'Travel',
-                    totalSpent: '₹680.00',
-                    memberCount: '3 members',
+                  totalSpent: '₹680.00',
+                  memberCount: '3 members',
                   avatars: const ['M', 'A', 'You'],
                   balance: 'Maya owes you ₹45.00',
                   positive: true,
@@ -111,14 +121,15 @@ class HomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 10),
 
+                // Flatmates 402
                 _buildGroupCard(
                   context,
                   icon: Icons.apartment,
                   iconBackground: const Color(0xFFCDE8E3),
                   title: 'Flatmates 402',
                   category: 'Home',
-                    totalSpent: '₹1,420.00',
-                    memberCount: '4 members',
+                  totalSpent: '₹1,420.00',
+                  memberCount: '4 members',
                   avatars: const ['S', 'A', '+2'],
                   balance: 'You owe ₹80.00',
                   positive: false,
@@ -126,6 +137,7 @@ class HomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 10),
 
+                // Movie Night
                 _buildGroupCard(
                   context,
                   icon: Icons.local_movies,
@@ -134,12 +146,13 @@ class HomeScreen extends StatelessWidget {
                   category: 'Leisure',
                   totalSpent: '₹390.00',
                   memberCount: '3 members',
-                  avatars: const ['D', 'C'],
+                  avatars: const ['D', 'C', 'You'],
                   settled: true,
                 ),
 
                 const SizedBox(height: 10),
 
+                // Road Trip
                 _buildGroupCard(
                   context,
                   icon: Icons.directions_car,
@@ -165,231 +178,14 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
-
-          
         ],
       ),
     );
   }
 
-  Widget _buildBalanceOverview() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: surfaceContainerLow,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'NET POSITION',
-                style: TextStyle(
-                  fontSize: 12,
-                  letterSpacing: 1,
-                  fontWeight: FontWeight.w500,
-                  color: onSurfaceVariant,
-                ),
-              ),
-
-              const Spacer(),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: secondaryContainer,
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.trending_up,
-                      size: 15,
-                      color: onSurfaceVariant,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Settlements Active',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          const Text(
-            'Overall, you are owed',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w400,
-              color: onSurface,
-            ),
-          ),
-
-          const SizedBox(height: 2),
-
-          const Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '₹145.50',
-                style: TextStyle(
-                  fontSize: 45,
-                  height: 1.1,
-                  fontWeight: FontWeight.w700,
-                  color: primary,
-                  letterSpacing: -1,
-                ),
-              ),
-
-              SizedBox(width: 7),
-
-              Text(
-                'across 4 groups',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 18),
-
-          Row(
-            children: [
-              Expanded(
-                child: _buildMiniBalance(
-                  icon: Icons.arrow_downward,
-                  label: 'You owe',
-                  amount: '₹32.00',
-                  color: error,
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              Expanded(
-                child: _buildMiniBalance(
-                  icon: Icons.arrow_upward,
-                  label: 'You are owed',
-                  amount: '₹177.50',
-                  color: primary,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    size: 18,
-                  ),
-                  label: const Text('Settle All'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(0, 48),
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.file_download_outlined,
-                    size: 18,
-                  ),
-                  label: const Text('Export Sheet'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: surfaceContainerHigh,
-                    foregroundColor: onSurface,
-                    minimumSize: const Size(0, 48),
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniBalance({
-    required IconData icon,
-    required String label,
-    required String amount,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: color,
-              ),
-
-              const SizedBox(width: 5),
-
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 5),
-
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ============================================================
+  // GROUPS HEADER
+  // ============================================================
 
   Widget _buildGroupsHeader() {
     return Row(
@@ -431,7 +227,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGroupCard(BuildContext context, {
+  // ============================================================
+  // GROUP CARD
+  // ============================================================
+
+  Widget _buildGroupCard(
+    BuildContext context, {
     required IconData icon,
     required Color iconBackground,
     required String title,
@@ -443,177 +244,264 @@ class HomeScreen extends StatelessWidget {
     bool positive = false,
     bool settled = false,
   }) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => GroupLedgerScreen(
-              groupName: title,
-              groupIcon: icon,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GroupLedgerScreen(
+                groupName: title,
+                groupIcon: icon,
+              ),
             ),
+          );
+        },
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: surfaceContainerLow,
+            borderRadius: BorderRadius.circular(22),
           ),
-        );
-      },
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: surfaceContainerLow,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
+          child: Stack(
+            children: [
+              // Soft ambient circle
+            //   Positioned(
+            //     right: -38,
+            //     top: -45,
+            //     child: Container(
+            //       width: 125,
+            //       height: 125,
+            //       decoration: BoxDecoration(
+            //         color: iconBackground.withValues(alpha: 0.48),
+            //         shape: BoxShape.circle,
+            //       ),
+            //     ),
+            //   ),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ------------------------------------------------
+                  // Category + icon
+                  // ------------------------------------------------
+
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: secondaryContainer,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              icon,
-                              size: 12,
-                              color: onSurfaceVariant,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: secondaryContainer,
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    icon,
+                                    size: 12,
+                                    color: onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    category.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      letterSpacing: 0.45,
+                                      fontWeight: FontWeight.w600,
+                                      color: onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 3),
+
+                            const SizedBox(height: 6),
+
                             Text(
-                              category.toUpperCase(),
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 9,
-                                letterSpacing: 0.4,
+                                fontSize: 20,
+                                height: 1.15,
                                 fontWeight: FontWeight.w600,
-                                color: onSurfaceVariant,
+                                color: onSurface,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 21,
-                          height: 1.15,
-                          fontWeight: FontWeight.w600,
-                          color: onSurface,
+
+                      const SizedBox(width: 10),
+
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: iconBackground,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          icon,
+                          size: 21,
+                          color: onSurfaceVariant,
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: iconBackground,
-                    borderRadius: BorderRadius.circular(14),
+
+                  const SizedBox(height: 12),
+
+                  // ------------------------------------------------
+                  // Spend + balance
+                  // ------------------------------------------------
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      color: surfaceContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Group Total Spend',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  letterSpacing: 0.3,
+                                  color: onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+
+                              const SizedBox(height: 2),
+
+                              Text(
+                                totalSpent,
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w700,
+                                  color: onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: settled
+                                  ? secondaryContainer
+                                  : positive
+                                      ? primaryFixed
+                                      : errorContainer,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  settled
+                                      ? Icons.check_circle_outline
+                                      : positive
+                                          ? Icons.arrow_upward
+                                          : Icons.arrow_downward,
+                                  size: 13,
+                                  color: settled
+                                      ? onSurfaceVariant
+                                      : positive
+                                          ? onPrimaryFixed
+                                          : error,
+                                ),
+
+                                const SizedBox(width: 3),
+
+                                Flexible(
+                                  child: Text(
+                                    settled
+                                        ? 'All settled up'
+                                        : balance ?? '',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: settled
+                                          ? onSurfaceVariant
+                                          : positive
+                                              ? onPrimaryFixed
+                                              : error,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Icon(
-                    icon,
-                    size: 21,
-                    color: onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _buildAvatarStack(avatars),
-                const SizedBox(width: 8),
-                Text(
-                  memberCount,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: onSurfaceVariant,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: settled ? secondaryContainer : primaryContainer,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+
+                  const SizedBox(height: 10),
+
+                  // ------------------------------------------------
+                  // Members
+                  // ------------------------------------------------
+
+                  Row(
                     children: [
-                      Icon(
-                        settled
-                            ? Icons.check_circle_outline
-                            : Icons.arrow_downward,
-                        size: 14,
-                        color: settled ? onSurfaceVariant : Colors.white,
-                      ),
-                      const SizedBox(width: 4),
+                      _buildAvatarStack(avatars),
+
+                      const SizedBox(width: 8),
+
                       Text(
-                        settled ? 'All settled up' : balance!,
-                        style: TextStyle(
+                        memberCount,
+                        style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: settled ? onSurfaceVariant : Colors.white,
+                          color: onSurfaceVariant,
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: surfaceContainer,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total spent',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    totalSpent,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: onSurface,
-                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  // ============================================================
+  // AVATAR STACK
+  // ============================================================
 
   Widget _buildAvatarStack(List<String> avatars) {
     return SizedBox(
@@ -658,6 +546,10 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+
+  // ============================================================
+  // RECENT EXPENSES
+  // ============================================================
 
   Widget _buildRecentExpensesHeader() {
     return Row(
