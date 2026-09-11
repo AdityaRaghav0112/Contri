@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../groups/group_ledger_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -96,12 +97,13 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 _buildGroupCard(
+                  context,
                   icon: Icons.flight_takeoff,
                   iconBackground: secondaryContainer,
                   title: 'Weekend Kyoto Trip',
                   category: 'Travel',
-                  subtitle:
-                      '3 members: You, Maya, Alex • ₹680 spent',
+                    totalSpent: '₹680.00',
+                    memberCount: '3 members',
                   avatars: const ['M', 'A', 'You'],
                   balance: 'Maya owes you ₹45.00',
                   positive: true,
@@ -110,12 +112,13 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 _buildGroupCard(
+                  context,
                   icon: Icons.apartment,
                   iconBackground: const Color(0xFFCDE8E3),
                   title: 'Flatmates 402',
                   category: 'Home',
-                  subtitle:
-                      '4 members • Rent & Utilities • ₹1,420 spent',
+                    totalSpent: '₹1,420.00',
+                    memberCount: '4 members',
                   avatars: const ['S', 'A', '+2'],
                   balance: 'You owe ₹80.00',
                   positive: false,
@@ -124,11 +127,13 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 _buildGroupCard(
+                  context,
                   icon: Icons.local_movies,
                   iconBackground: surfaceContainerHigh,
                   title: 'Movie Night & Snacks',
                   category: 'Leisure',
-                  subtitle: '3 members: Dave, Chloe, You',
+                  totalSpent: '₹390.00',
+                  memberCount: '3 members',
                   avatars: const ['D', 'C'],
                   settled: true,
                 ),
@@ -136,11 +141,13 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 _buildGroupCard(
+                  context,
                   icon: Icons.directions_car,
                   iconBackground: const Color(0xFFB1CCC7),
                   title: 'Road Trip & Gas',
                   category: 'Trip',
-                  subtitle: '5 members • Highway split',
+                  totalSpent: '₹1,080.00',
+                  memberCount: '5 members',
                   avatars: const ['LE', 'RK', '+3'],
                   balance: 'Leo owes you ₹18.50',
                   positive: true,
@@ -424,153 +431,186 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGroupCard({
+  Widget _buildGroupCard(BuildContext context, {
     required IconData icon,
     required Color iconBackground,
     required String title,
     required String category,
-    required String subtitle,
+    required String totalSpent,
+    required String memberCount,
     required List<String> avatars,
     String? balance,
     bool positive = false,
     bool settled = false,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0x1ABEC9C6),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GroupLedgerScreen(
+              groupName: title,
+              groupIcon: icon,
+            ),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: surfaceContainerLow,
+          borderRadius: BorderRadius.circular(22),
         ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: iconBackground,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: 27,
-                  color: onSurfaceVariant,
-                ),
-              ),
-
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: onSurface,
-                            ),
-                          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
                         ),
-
-                        const SizedBox(width: 6),
-
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            category,
-                            style: const TextStyle(
-                              fontSize: 10,
+                        decoration: BoxDecoration(
+                          color: secondaryContainer,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              icon,
+                              size: 12,
                               color: onSurfaceVariant,
                             ),
-                          ),
+                            const SizedBox(width: 3),
+                            Text(
+                              category.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                letterSpacing: 0.4,
+                                fontWeight: FontWeight.w600,
+                                color: onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: onSurfaceVariant,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 5),
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 21,
+                          height: 1.15,
+                          fontWeight: FontWeight.w600,
+                          color: onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              _buildAvatarStack(avatars),
-
-              const Spacer(),
-
-              if (settled)
+                const SizedBox(width: 8),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: iconBackground,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 21,
+                    color: onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _buildAvatarStack(avatars),
+                const SizedBox(width: 8),
+                Text(
+                  memberCount,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: onSurfaceVariant,
+                  ),
+                ),
+                const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: secondaryContainer,
-                    borderRadius: BorderRadius.circular(20),
+                    color: settled ? secondaryContainer : primaryContainer,
+                    borderRadius: BorderRadius.circular(30),
                   ),
-                  child: const Row(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.check_circle_outline,
-                        size: 15,
-                        color: onSurfaceVariant,
+                        settled
+                            ? Icons.check_circle_outline
+                            : Icons.arrow_downward,
+                        size: 14,
+                        color: settled ? onSurfaceVariant : Colors.white,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
-                        'All settled up',
+                        settled ? 'All settled up' : balance!,
                         style: TextStyle(
                           fontSize: 11,
-                          color: onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                          color: settled ? onSurfaceVariant : Colors.white,
                         ),
                       ),
                     ],
                   ),
-                )
-              else
-                Text(
-                  balance!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: positive ? primary : error,
-                  ),
                 ),
-            ],
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: surfaceContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total spent',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    totalSpent,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
