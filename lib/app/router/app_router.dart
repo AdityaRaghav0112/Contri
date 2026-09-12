@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/activity/activity_screen.dart';
+import '../../features/friends/friends_screen.dart';
 import '../../features/home/home_screen.dart';
 
 class AppRouter extends StatefulWidget {
@@ -13,12 +14,9 @@ class AppRouter extends StatefulWidget {
 class _AppRouterState extends State<AppRouter> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
+  List<Widget> get _screens => const [
     HomeScreen(),
-    _PlaceholderScreen(
-      title: 'Friends',
-      icon: Icons.person_outline,
-    ),
+    FriendsScreen(),
     ActivityScreen(),
   ];
 
@@ -208,31 +206,6 @@ class _AppRouterState extends State<AppRouter> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  const _PlaceholderScreen({
-    required this.title,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: Center(
-        child: Icon(
-          icon,
-          size: 64,
         ),
       ),
     );

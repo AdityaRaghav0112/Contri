@@ -378,43 +378,38 @@ class HomeScreen extends StatelessWidget {
                       
                     ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Group Total Spend',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  letterSpacing: 0.3,
-                                  color: onSurfaceVariant,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Group Total Spend',
+                              style: TextStyle(
+                                fontSize: 10,
+                                letterSpacing: 0.3,
+                                color: onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
                               ),
-
-                              const SizedBox(height: 2),
-
-                              Text(
-                                totalSpent,
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w700,
-                                  color: onSurface,
-                                ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              totalSpent,
+                              style: const TextStyle(
+                                fontSize: 19,
+                                height: 1.2,
+                                fontWeight: FontWeight.w700,
+                                color: onSurface,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-
                         const SizedBox(width: 8),
-
                         Flexible(
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
+                              horizontal: 10,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
@@ -441,9 +436,7 @@ class HomeScreen extends StatelessWidget {
                                           ? onPrimaryFixed
                                           : error,
                                 ),
-
-                                const SizedBox(width: 3),
-
+                                const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     settled

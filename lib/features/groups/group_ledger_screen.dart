@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../expenses/add_expense_screen.dart';
 
 class GroupLedgerScreen extends StatefulWidget {
   final String groupName;
@@ -24,10 +25,8 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
   static const Color onPrimaryFixed = Color(0xFF00201C);
 
   static const Color surface = Color(0xFFF2FBF9);
-  static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
   static const Color surfaceContainerLow = Color(0xFFEDF6F3);
   static const Color surfaceContainer = Color(0xFFE7F0ED);
-  static const Color surfaceContainerHigh = Color(0xFFE1EAE7);
   static const Color surfaceContainerHighest = Color(0xFFDBE4E2);
 
   static const Color secondaryContainer = Color(0xFFCAE5E0);
@@ -1188,7 +1187,16 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AddExpenseScreen(
+                groupName: widget.groupName,
+              ),
+            ),
+          );
+        },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           height: 48,
