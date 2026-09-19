@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/services/supabase_service.dart';
 import '../../features/activity/activity_screen.dart';
 import '../../features/friends/friends_screen.dart';
 import '../../features/home/home_screen.dart';
@@ -155,59 +156,71 @@ class _AppRouterState extends State<AppRouter> {
   }
 
   Widget _buildProfileButton() {
-    return GestureDetector(
-      onTap: () {
-        // Account screen will be added later.
-      },
-      child: Container(
-        width: 52,
-        height: 52,
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF151B1C),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            const CircleAvatar(
-              radius: 26,
-              backgroundColor: Color(0xFFCAE5E0),
-              child: Text(
-                'AR',
-                style: TextStyle(
-                  color: Color(0xFF005048),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
+    return ValueListenableBuilder(
+      valueListenable: SupabaseService().currentProfileNotifier,
+      builder: (context, profile, _) {
+        final initials = profile?.initials ?? 'AR';
+        return GestureDetector(
+          onTap: () {
+            // Account screen / profile dialog
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Logged in as: ${profile?.name ?? 'User'} (${profile?.email ?? ''})'),
+                behavior: SnackBarBehavior.floating,
               ),
+            );
+          },
+          child: Container(
+            width: 52,
+            height: 52,
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF151B1C),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-
-            Positioned(
-              right: 2,
-              top: 2,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF21B59A),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF151B1C),
-                    width: 2,
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: const Color(0xFFCAE5E0),
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      color: Color(0xFF005048),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-              ),
+
+                Positioned(
+                  right: 2,
+                  top: 2,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF21B59A),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF151B1C),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

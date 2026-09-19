@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/repositories/friend_repository.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -12,7 +13,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
   // Colors & Tokens
   // ------------------------------------------------------------
   static const Color primary = Color(0xFF005048);
-
   static const Color surface = Color(0xFFF2FBF9);
   static const Color surfaceLowest = Color(0xFFFFFFFF);
   static const Color surfaceLow = Color(0xFFEDF6F3);
@@ -28,12 +28,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
   static const Color error = Color(0xFFBA1A1A);
 
   // ------------------------------------------------------------
-  // State
+  // State & Repositories
   // ------------------------------------------------------------
+  final FriendRepository _friendRepository = FriendRepository();
+
   int _selectedFilter = 0;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   bool _showSearch = false;
+  bool _isLoading = true;
 
   final List<String> _filters = [
     'All',
@@ -42,82 +45,26 @@ class _FriendsScreenState extends State<FriendsScreen> {
     'Settled',
   ];
 
-  // Friend sample model data
-  late List<_FriendItem> _friends;
+  List<FriendBalanceItem> _friends = [];
 
   @override
   void initState() {
     super.initState();
-    _friends = [
-      _FriendItem(
-        name: 'Alex Rivera',
-        avatar: 'A',
-        avatarColor: const Color(0xFFBFA77D),
-        email: 'alex.rivera@email.com',
-        phone: '+91 98765 43210',
-        sharedGroups: const ['Flatmates 402', 'Movie Night & Snacks'],
-        balance: 70.00,
-        isOwed: true,
-        recentActivity: 'Owes you for Movie: Dune IMAX 3D',
-      ),
-      _FriendItem(
-        name: 'Maya Lin',
-        avatar: 'M',
-        avatarColor: const Color(0xFF879B8C),
-        email: 'maya.lin@email.com',
-        phone: '+91 98123 45678',
-        sharedGroups: const ['Weekend Kyoto Trip', 'Movie Night & Snacks'],
-        balance: 50.00,
-        isOwed: true,
-        recentActivity: 'Owes you for Kyoto bullet train pass',
-      ),
-      _FriendItem(
-        name: 'Jordan Blake',
-        avatar: 'J',
-        avatarColor: const Color(0xFF5A7B8C),
-        email: 'jordan.b@email.com',
-        phone: '+91 98234 56789',
-        sharedGroups: const ['Flatmates 402'],
-        balance: 45.00,
-        isOwed: false,
-        recentActivity: 'You owe for WiFi & Utility bill',
-      ),
-      _FriendItem(
-        name: 'Sam Chen',
-        avatar: 'S',
-        avatarColor: const Color(0xFF69716E),
-        email: 'sam.chen@email.com',
-        phone: '+91 98345 67890',
-        sharedGroups: const ['Flatmates 402', 'Road Trip & Gas'],
-        balance: 0.00,
-        isOwed: true,
-        isSettled: true,
-        recentActivity: 'Settled up 2 days ago',
-      ),
-      _FriendItem(
-        name: 'Elena Rostova',
-        avatar: 'E',
-        avatarColor: const Color(0xFF9E829C),
-        email: 'elena.r@email.com',
-        phone: '+91 98456 78901',
-        sharedGroups: const ['Road Trip & Gas'],
-        balance: 50.00,
-        isOwed: true,
-        recentActivity: 'Owes you for Highway toll & fuel',
-      ),
-      _FriendItem(
-        name: 'David Kim',
-        avatar: 'D',
-        avatarColor: const Color(0xFF7A8B7B),
-        email: 'david.k@email.com',
-        phone: '+91 98567 89012',
-        sharedGroups: const ['Movie Night & Snacks'],
-        balance: 0.00,
-        isOwed: true,
-        isSettled: true,
-        recentActivity: 'Settled up last week',
-      ),
-    ];
+    _loadFriends();
+  }
+
+  Future<void> _loadFriends() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final friends = await _friendRepository.getFriends();
+
+    if (!mounted) return;
+    setState(() {
+      _friends = friends;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -143,15 +90,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   double get _netBalance => _totalYouAreOwed - _totalYouOwe;
 
-  List<_FriendItem> get _filteredFriends {
+  List<FriendBalanceItem> get _filteredFriends {
     return _friends.where((f) {
       // Search filter
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
         final matchName = f.name.toLowerCase().contains(q);
         final matchEmail = f.email.toLowerCase().contains(q);
-        final matchGroup =
-            f.sharedGroups.any((g) => g.toLowerCase().contains(q));
+        final matchGroup = f.sharedGroups.any((g) => g.toLowerCase().contains(q));
         if (!matchName && !matchEmail && !matchGroup) return false;
       }
 
@@ -235,6 +181,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               const SizedBox(height: 16),
               TextField(
                 controller: nameController,
+                autofocus: true,
                 style: const TextStyle(fontSize: 15, color: onSurface),
                 decoration: InputDecoration(
                   labelText: 'Friend\'s Full Name',
@@ -253,7 +200,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 style: const TextStyle(fontSize: 15, color: onSurface),
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: 'Email or Phone Number',
+                  labelText: 'Email Address',
                   prefixIcon: const Icon(Icons.alternate_email, size: 20),
                   filled: true,
                   fillColor: surfaceLow,
@@ -268,28 +215,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final name = nameController.text.trim();
                     if (name.isNotEmpty) {
-                      setState(() {
-                        _friends.insert(
-                          0,
-                          _FriendItem(
-                            name: name,
-                            avatar: name[0].toUpperCase(),
-                            avatarColor: const Color(0xFF6B8E8E),
-                            email: emailPhoneController.text.trim().isEmpty
-                                ? '$name@contri.app'
-                                : emailPhoneController.text.trim(),
-                            phone: '+91 99000 11223',
-                            sharedGroups: const ['General'],
-                            balance: 0.0,
-                            isOwed: true,
-                            isSettled: true,
-                            recentActivity: 'Just added as friend',
-                          ),
-                        );
-                      });
+                      final email = emailPhoneController.text.trim();
+                      await _friendRepository.addFriend(name: name, email: email);
+                      if (!context.mounted) return;
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -297,6 +228,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
+                      _loadFriends();
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -323,7 +255,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
-  void _showFriendDetails(_FriendItem friend) {
+  void _showFriendDetails(FriendBalanceItem friend) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -438,11 +370,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       ),
                       if (!friend.isSettled)
                         ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              friend.isSettled = true;
-                              friend.balance = 0.0;
-                            });
+                          onPressed: () async {
+                            await _friendRepository.settleWithFriend(friend);
+                            if (!context.mounted) return;
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -450,6 +380,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
+                            _loadFriends();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primary,
@@ -599,119 +530,115 @@ class _FriendsScreenState extends State<FriendsScreen> {
           const SizedBox(width: 6),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_showSearch) ...[
-              Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: BoxDecoration(
-                  color: surfaceLow,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  autofocus: true,
-                  onChanged: (val) {
-                    setState(() {
-                      _searchQuery = val;
-                    });
-                  },
-                  style: const TextStyle(fontSize: 14, color: onSurface),
-                  decoration: const InputDecoration(
-                    hintText: 'Search friends by name, email, or group...',
-                    hintStyle: TextStyle(fontSize: 13, color: outline),
-                    prefixIcon: Icon(Icons.search, size: 20, color: primary),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
-
-            // Friends Overall Position Card
-            _buildFriendsPositionCard(),
-
-            const SizedBox(height: 18),
-
-            // Filter Tabs
-            _buildFilterPills(),
-
-            const SizedBox(height: 14),
-
-            // Friends List Header
-            Row(
-              children: [
-                const Text(
-                  'All Friends',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w600,
-                    color: onSurface,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '(${_filteredFriends.length})',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _showAddFriendDialog,
-                  icon: const Icon(
-                    Icons.add,
-                    size: 16,
-                  ),
-                  label: const Text('Add Friend'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: primary,
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Friends Cards List
-            if (_filteredFriends.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 40),
-                decoration: BoxDecoration(
-                  color: surfaceLow,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+      body: RefreshIndicator(
+        onRefresh: _loadFriends,
+        color: primary,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: primary))
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
                 child: Column(
-                  children: const [
-                    Icon(
-                      Icons.person_search_outlined,
-                      size: 40,
-                      color: outline,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'No friends found in this filter',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_showSearch) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        decoration: BoxDecoration(
+                          color: surfaceLow,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          autofocus: true,
+                          onChanged: (val) {
+                            setState(() {
+                              _searchQuery = val;
+                            });
+                          },
+                          style: const TextStyle(fontSize: 14, color: onSurface),
+                          decoration: const InputDecoration(
+                            hintText: 'Search friends by name, email, or group...',
+                            hintStyle: TextStyle(fontSize: 13, color: outline),
+                            prefixIcon: Icon(Icons.search, size: 20, color: primary),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                       ),
+                    ],
+
+                    _buildFriendsPositionCard(),
+                    const SizedBox(height: 18),
+                    _buildFilterPills(),
+                    const SizedBox(height: 14),
+
+                    Row(
+                      children: [
+                        const Text(
+                          'All Friends',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w600,
+                            color: onSurface,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '(${_filteredFriends.length})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _showAddFriendDialog,
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Add Friend'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: primary,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 8),
+
+                    if (_filteredFriends.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        decoration: BoxDecoration(
+                          color: surfaceLow,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(
+                              Icons.person_search_outlined,
+                              size: 40,
+                              color: outline,
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'No friends found',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ..._filteredFriends.map((f) => _buildFriendCard(f)),
                   ],
                 ),
-              )
-            else
-              ..._filteredFriends.map((f) => _buildFriendCard(f)),
-          ],
-        ),
+              ),
       ),
     );
   }
@@ -743,17 +670,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: secondaryContainer,
                   borderRadius: BorderRadius.circular(30),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(
                       Icons.people,
                       size: 13,
@@ -761,7 +685,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'Active',
+                      'Live Supabase',
                       style: TextStyle(
                         fontSize: 10,
                         color: onSecondaryContainer,
@@ -822,29 +746,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: const [
-                          Icon(
-                            Icons.arrow_upward,
-                            size: 14,
-                            color: primary,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'You are owed',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        'You are owed',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: primary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         '₹${_totalYouAreOwed.toStringAsFixed(2)}',
                         style: const TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: primary,
                         ),
@@ -864,29 +778,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: const [
-                          Icon(
-                            Icons.arrow_downward,
-                            size: 14,
-                            color: error,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'You owe',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        'You owe',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: error,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         '₹${_totalYouOwe.toStringAsFixed(2)}',
                         style: const TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: error,
                         ),
@@ -906,41 +810,40 @@ class _FriendsScreenState extends State<FriendsScreen> {
   // FILTER PILLS
   // ------------------------------------------------------------
   Widget _buildFilterPills() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(_filters.length, (index) {
-          final selected = _selectedFilter == index;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedFilter = index;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: selected ? primary : surfaceLow,
-                  borderRadius: BorderRadius.circular(999),
-                ),
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _filters.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final isSelected = _selectedFilter == index;
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedFilter = index;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: isSelected ? primary : surfaceContainerLow,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Center(
                 child: Text(
                   _filters[index],
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected ? Colors.white : onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.white : onSurfaceVariant,
                   ),
                 ),
               ),
             ),
           );
-        }),
+        },
       ),
     );
   }
@@ -948,147 +851,101 @@ class _FriendsScreenState extends State<FriendsScreen> {
   // ------------------------------------------------------------
   // FRIEND CARD
   // ------------------------------------------------------------
-  Widget _buildFriendCard(_FriendItem friend) {
+  Widget _buildFriendCard(FriendBalanceItem friend) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showFriendDetails(friend),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: surfaceLow,
-              borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: surfaceLowest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
+        onTap: () => _showFriendDetails(friend),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: friend.avatarColor,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                friend.avatar,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
-            child: Row(
-              children: [
-                // Avatar
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: friend.avatarColor,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    friend.avatar,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    friend.name,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: onSurface,
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-
-                // Name & Shared groups
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        friend.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        friend.sharedGroups.join(', '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: outline,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 2),
+                  Text(
+                    friend.sharedGroups.join(', '),
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  friend.isSettled
+                      ? 'Settled up'
+                      : friend.isOwed
+                          ? '+ ₹${friend.balance.toStringAsFixed(2)}'
+                          : '- ₹${friend.balance.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: friend.isSettled
+                        ? onSurfaceVariant
+                        : friend.isOwed
+                            ? primary
+                            : error,
                   ),
                 ),
-
-                const SizedBox(width: 8),
-
-                // Balance status
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      friend.isSettled
-                          ? 'Settled'
-                          : friend.isOwed
-                              ? '+ ₹${friend.balance.toStringAsFixed(2)}'
-                              : '- ₹${friend.balance.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: friend.isSettled
-                            ? outline
-                            : friend.isOwed
-                                ? primary
-                                : error,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      friend.isSettled
-                          ? 'All clear'
-                          : friend.isOwed
-                              ? 'owes you'
-                              : 'you owe',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: friend.isSettled
-                            ? outline
-                            : friend.isOwed
-                                ? primary
-                                : error,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.chevron_right,
-                  size: 18,
-                  color: outline,
+                const SizedBox(height: 2),
+                Text(
+                  friend.isSettled
+                      ? '₹0.00'
+                      : friend.isOwed
+                          ? 'owes you'
+                          : 'you owe',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: friend.isSettled
+                        ? outline
+                        : friend.isOwed
+                            ? primary
+                            : error,
+                  ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
   }
-}
-
-class _FriendItem {
-  final String name;
-  final String avatar;
-  final Color avatarColor;
-  final String email;
-  final String phone;
-  final List<String> sharedGroups;
-  double balance;
-  final bool isOwed;
-  bool isSettled;
-  final String recentActivity;
-
-  _FriendItem({
-    required this.name,
-    required this.avatar,
-    required this.avatarColor,
-    required this.email,
-    required this.phone,
-    required this.sharedGroups,
-    required this.balance,
-    required this.isOwed,
-    this.isSettled = false,
-    required this.recentActivity,
-  });
 }

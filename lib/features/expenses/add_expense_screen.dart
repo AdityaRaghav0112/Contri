@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import '../../core/models/profile.dart';
+import '../../core/repositories/expense_repository.dart';
+import '../../core/services/supabase_service.dart';
 
 class AddExpenseScreen extends StatefulWidget {
+  final String groupId;
   final String groupName;
-  final List<String> members;
+  final List<Profile> members;
 
   const AddExpenseScreen({
     super.key,
-    this.groupName = 'Movie & Weekend Getaway',
-    this.members = const ['You', 'Alex Rivera', 'Maya Lin'],
+    required this.groupId,
+    this.groupName = 'Contri Group',
+    this.members = const [],
   });
 
   @override
@@ -18,7 +23,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   // ---------------------------------------------------------------------------
   // Theme
   // ---------------------------------------------------------------------------
-
   static const Color surface = Color(0xFFF2FBF9);
   static const Color surfaceLowest = Color(0xFFFFFFFF);
   static const Color surfaceLow = Color(0xFFEDF6F3);
@@ -36,36 +40,46 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   // ---------------------------------------------------------------------------
   // Controllers
   // ---------------------------------------------------------------------------
-
-  final TextEditingController _descriptionController =
-      TextEditingController(text: 'Movie: Dune IMAX 3D');
-
-  final TextEditingController _amountController =
-      TextEditingController(text: '300.00');
-
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+  final ExpenseRepository _expenseRepository = ExpenseRepository();
+  final SupabaseService _supabaseService = SupabaseService();
 
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-
-  String _selectedCategory = 'Movies';
-
-  String _selectedPayer = 'You';
-
+  String _selectedCategory = 'Food';
+  late String _selectedPayerId;
   bool _isSaving = false;
+  late Set<String> _selectedParticipantIds;
 
-  bool _saved = false;
-
-  final Set<String> _selectedParticipants = {
-    'You',
-    'Alex Rivera',
-    'Maya Lin',
-  };
+  late List<Profile> _effectiveMembers;
 
   @override
   void initState() {
     super.initState();
+
+    final currentProfile = _supabaseService.currentProfile ??
+        Profile(
+          id: '00000000-0000-0000-0000-000000000001',
+          name: 'You',
+          email: 'you@contri.app',
+          createdAt: DateTime.now(),
+        );
+
+    // Build member list ensuring current user is present
+    if (widget.members.isEmpty) {
+      _effectiveMembers = [currentProfile];
+    } else {
+      _effectiveMembers = List.from(widget.members);
+      if (!_effectiveMembers.any((m) => m.id == currentProfile.id)) {
+        _effectiveMembers.insert(0, currentProfile);
+      }
+    }
+
+    _selectedPayerId = currentProfile.id;
+    _selectedParticipantIds = _effectiveMembers.map((m) => m.id).toSet();
 
     _amountController.addListener(_refresh);
     _descriptionController.addListener(_refresh);
@@ -87,61 +101,56 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   // ---------------------------------------------------------------------------
   // Calculations
   // ---------------------------------------------------------------------------
-
   double get _amount {
     return double.tryParse(_amountController.text) ?? 0;
   }
 
   int get _participantCount {
-    return _selectedParticipants.length;
+    return _selectedParticipantIds.length;
   }
 
   double get _equalShare {
     if (_participantCount == 0) return 0;
-
     return _amount / _participantCount;
   }
 
-  double _amountPaidBy(String member) {
-    if (_selectedPayer == member) {
+  double _amountPaidBy(String userId) {
+    if (_selectedPayerId == userId) {
       return _amount;
     }
-
     return 0;
   }
 
-  double _shareFor(String member) {
-    if (!_selectedParticipants.contains(member)) {
+  double _shareFor(String userId) {
+    if (!_selectedParticipantIds.contains(userId)) {
       return 0;
     }
-
     return _equalShare;
   }
 
-  double _netFor(String member) {
-    return _amountPaidBy(member) - _shareFor(member);
+  double _netFor(String userId) {
+    return _amountPaidBy(userId) - _shareFor(userId);
   }
-
-  // ---------------------------------------------------------------------------
-  // Formatting
-  // ---------------------------------------------------------------------------
 
   String _money(double value) {
     return '₹${value.toStringAsFixed(2)}';
   }
 
+  String _displayName(Profile profile) {
+    final currentUserId = _supabaseService.currentProfile?.id;
+    if (profile.id == currentUserId) return 'You';
+    return profile.name;
+  }
+
   // ---------------------------------------------------------------------------
   // Actions
   // ---------------------------------------------------------------------------
-
   Future<void> _showPayerPicker() async {
     final result = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: surfaceLowest,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
         return SafeArea(
@@ -171,27 +180,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ...widget.members.map(
+                ..._effectiveMembers.map(
                   (member) => ListTile(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     leading: _avatar(member),
                     title: Text(
-                      member,
+                      _displayName(member),
                       style: const TextStyle(
                         fontSize: 16,
                         color: onSurface,
                       ),
                     ),
-                    trailing: member == _selectedPayer
-                        ? const Icon(
-                            Icons.check,
-                            color: primary,
-                          )
+                    trailing: member.id == _selectedPayerId
+                        ? const Icon(Icons.check, color: primary)
                         : null,
                     onTap: () {
-                      Navigator.pop(context, member);
+                      Navigator.pop(context, member.id);
                     },
                   ),
                 ),
@@ -204,18 +210,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     if (result != null) {
       setState(() {
-        _selectedPayer = result;
+        _selectedPayerId = result;
       });
     }
-  }
-
-  Future<void> _attachReceipt() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Receipt attachment will be connected next.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   Future<void> _saveExpense() async {
@@ -239,7 +236,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       return;
     }
 
-    if (_selectedParticipants.isEmpty) {
+    if (_selectedParticipantIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Select at least one participant.'),
@@ -253,61 +250,75 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _isSaving = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      final Map<String, double> participantShares = {};
+      for (final pId in _selectedParticipantIds) {
+        participantShares[pId] = _equalShare;
+      }
 
-    if (!mounted) return;
+      await _expenseRepository.addExpense(
+        groupId: widget.groupId,
+        description: _descriptionController.text.trim(),
+        amount: _amount,
+        category: _selectedCategory,
+        paidBy: _selectedPayerId,
+        participantShares: participantShares,
+      );
 
-    setState(() {
-      _isSaving = false;
-      _saved = true;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 700));
-
-    if (!mounted) return;
-
-    Navigator.pop(context, true);
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving expense: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------
   // UI Helpers
   // ---------------------------------------------------------------------------
-
-  Widget _avatar(String name) {
-    final letter = name == 'You'
-        ? 'Y'
-        : name.trim().isEmpty
-            ? '?'
-            : name.trim()[0].toUpperCase();
-
-    Color avatarColor = secondaryContainer;
-
-    if (name == 'Maya Lin') {
-      avatarColor = const Color(0xFF456179);
-    }
-
-    if (name == 'Alex Rivera') {
-      avatarColor = const Color(0xFF4A635F);
-    }
-
+  Widget _avatar(Profile member) {
     return CircleAvatar(
       radius: 15,
-      backgroundColor: avatarColor,
+      backgroundColor: secondaryContainer,
       child: Text(
-        letter,
-        style: TextStyle(
-          color: name == 'Maya Lin' ? Colors.white : onSurface,
-          fontSize: 12,
+        member.initials,
+        style: const TextStyle(
+          color: primary,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
     );
   }
 
-  Widget _categoryPill(
-    String emoji,
-    String title,
-  ) {
+  IconData _categoryIcon() {
+    switch (_selectedCategory.toLowerCase()) {
+      case 'movies':
+        return Icons.local_movies_outlined;
+      case 'food':
+        return Icons.restaurant_outlined;
+      case 'travel':
+        return Icons.flight_takeoff_outlined;
+      case 'transport':
+        return Icons.directions_car_outlined;
+      case 'home':
+        return Icons.wifi_outlined;
+      case 'shopping':
+        return Icons.shopping_bag_outlined;
+      default:
+        return Icons.receipt_long_outlined;
+    }
+  }
+
+  Widget _categoryPill(String emoji, String title) {
     final selected = _selectedCategory == title;
 
     return GestureDetector(
@@ -327,10 +338,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              emoji,
-              style: const TextStyle(fontSize: 16),
-            ),
+            Text(emoji, style: const TextStyle(fontSize: 16)),
             const SizedBox(width: 6),
             Text(
               title,
@@ -346,13 +354,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  Widget _payerPill(String member) {
-    final selected = _selectedPayer == member;
+  Widget _payerPill(Profile member) {
+    final selected = _selectedPayerId == member.id;
+    final name = _displayName(member);
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedPayer = member;
+          _selectedPayerId = member.id;
         });
       },
       child: AnimatedContainer(
@@ -376,7 +385,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               _avatar(member),
             const SizedBox(width: 7),
             Text(
-              member == 'You' ? 'You' : member.split(' ').first,
+              name == 'You' ? 'You' : name.split(' ').first,
               style: TextStyle(
                 color: selected ? Colors.white : onSurfaceVariant,
                 fontSize: 15,
@@ -389,26 +398,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Participant Row
-  // ---------------------------------------------------------------------------
-
-  Widget _participantRow(String member) {
-    final included = _selectedParticipants.contains(member);
-    final net = _netFor(member);
-    final share = _shareFor(member);
-    final paid = _amountPaidBy(member);
-
-    final isPayer = member == _selectedPayer;
+  Widget _participantRow(Profile member) {
+    final included = _selectedParticipantIds.contains(member.id);
+    final net = _netFor(member.id);
+    final share = _shareFor(member.id);
+    final paid = _amountPaidBy(member.id);
+    final isPayer = member.id == _selectedPayerId;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 14,
-      ),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: surfaceLowest,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
@@ -416,14 +418,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             onTap: () {
               setState(() {
                 if (included) {
-                  _selectedParticipants.remove(member);
-
-                  // Never leave zero participants.
-                  if (_selectedParticipants.isEmpty) {
-                    _selectedParticipants.add(member);
+                  _selectedParticipantIds.remove(member.id);
+                  if (_selectedParticipantIds.isEmpty) {
+                    _selectedParticipantIds.add(member.id);
                   }
                 } else {
-                  _selectedParticipants.add(member);
+                  _selectedParticipantIds.add(member.id);
                 }
               });
             },
@@ -433,18 +433,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               height: 24,
               decoration: BoxDecoration(
                 color: included ? primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: included ? primary : outline,
                   width: 2,
                 ),
               ),
               child: included
-                  ? const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 18,
-                    )
+                  ? const Icon(Icons.check, color: Colors.white, size: 16)
                   : null,
             ),
           ),
@@ -457,10 +453,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        member,
+                        _displayName(member),
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           color: onSurface,
                           fontWeight: FontWeight.w500,
                         ),
@@ -469,10 +465,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     if (isPayer) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFF9FF2E4),
                           borderRadius: BorderRadius.circular(999),
@@ -489,15 +482,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   isPayer
                       ? 'Paid ${_money(paid)} • Share ${_money(share)}'
-                      : 'Exact share: ${_participantCount == 0 ? '0' : '1/$_participantCount'}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: outline,
-                  ),
+                      : 'Exact share: ${_money(share)}',
+                  style: const TextStyle(fontSize: 11, color: outline),
                 ),
               ],
             ),
@@ -507,24 +497,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                net >= 0
-                    ? '+ ${_money(net)}'
-                    : '- ${_money(net.abs())}',
+                net >= 0 ? '+ ${_money(net)}' : '- ${_money(net.abs())}',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: net >= 0 ? primary : error,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
                 net > 0
-                    ? 'you get back'
+                    ? 'gets back'
                     : net < 0
-                        ? 'owes you'
+                        ? 'owes'
                         : 'settled',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: net >= 0 ? primary : error,
                 ),
               ),
@@ -538,7 +526,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -553,23 +540,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               _buildTopBar(),
               Expanded(
                 child: SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(
-                    16,
-                    10,
-                    16,
-                    28,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildExpenseHero(),
+                      const SizedBox(height: 18),
                       _buildCategories(),
+                      const SizedBox(height: 18),
                       _buildPaidBy(),
+                      const SizedBox(height: 18),
                       _buildSplitSummary(),
-                      _buildSaveSection(),
+                      const SizedBox(height: 24),
+                      _buildSaveButton(),
                     ],
                   ),
                 ),
@@ -580,10 +565,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Top App Bar
-  // ---------------------------------------------------------------------------
 
   Widget _buildTopBar() {
     return Container(
@@ -604,10 +585,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           children: [
             IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(
-                Icons.arrow_back,
-                size: 24,
-              ),
+              icon: const Icon(Icons.arrow_back, size: 24),
               color: onSurface,
             ),
             const SizedBox(width: 4),
@@ -636,7 +614,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: onSurface,
-                      letterSpacing: -.2,
                     ),
                   ),
                   Text(
@@ -652,7 +629,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
             ),
             GestureDetector(
-              onTap: _isSaving || _saved ? null : _saveExpense,
+              onTap: _isSaving ? null : _saveExpense,
               child: Container(
                 height: 36,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -662,21 +639,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    SizedBox(width: 5),
-                    Text(
-                      'Save',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                  children: [
+                    if (_isSaving)
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    else ...[
+                      const Icon(Icons.check, color: Colors.white, size: 16),
+                      const SizedBox(width: 5),
+                      const Text(
+                        'Save',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -687,10 +671,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Expense Hero
-  // ---------------------------------------------------------------------------
-
   Widget _buildExpenseHero() {
     return Container(
       width: double.infinity,
@@ -698,13 +678,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       decoration: BoxDecoration(
         color: surfaceLowest,
         borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .035),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -717,27 +690,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   color: secondaryContainer,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  _categoryIcon(),
-                  color: onSurfaceVariant,
-                  size: 22,
-                ),
+                child: Icon(_categoryIcon(), color: onSurfaceVariant, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: TextField(
                   controller: _descriptionController,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     color: onSurface,
                     fontWeight: FontWeight.w500,
                   ),
                   decoration: const InputDecoration(
                     labelText: 'Description',
-                    labelStyle: TextStyle(
-                      fontSize: 13,
-                      color: outline,
-                    ),
+                    hintText: 'e.g. Dinner, Groceries, Movie',
+                    labelStyle: TextStyle(fontSize: 13, color: outline),
                     border: InputBorder.none,
                     isDense: true,
                   ),
@@ -765,12 +732,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     constraints: const BoxConstraints(minWidth: 80),
                     child: TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       textAlign: TextAlign.start,
                       style: const TextStyle(
-                        fontSize: 48,
+                        fontSize: 44,
                         color: primary,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -1.2,
@@ -780,392 +745,156 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                         hintText: '0.00',
-                        hintStyle: TextStyle(
-                          color: primary,
-                        ),
+                        hintStyle: TextStyle(color: primary),
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 10),
-          // Short Note / Tag input field (max 20 chars)
-          Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: surfaceLow,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.tag_outlined,
-                  size: 18,
-                  color: primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _noteController,
-                    maxLength: 20,
-                    maxLines: 1,
-                    buildCounter: (
-                      context, {
-                      required int currentLength,
-                      required bool isFocused,
-                      required int? maxLength,
-                    }) =>
-                        null,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'Tag or short note (max 20 chars)',
-                      hintStyle: TextStyle(
-                        fontSize: 13,
-                        color: outline,
-                      ),
-                      counterText: '',
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${_noteController.text.length}/20',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: outline,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              GestureDetector(
-                onTap: _attachReceipt,
-                child: Container(
-                  height: 38,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: surfaceLow,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.receipt_long_outlined,
-                        size: 17,
-                        color: primary,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Add receipt / ticket',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Spacer(),
-              const Icon(
-                Icons.circle,
-                size: 8,
-                color: primary,
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'Auto date & time',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: outline,
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
-
-  IconData _categoryIcon() {
-    switch (_selectedCategory) {
-      case 'Food':
-        return Icons.restaurant_outlined;
-      case 'Transport':
-        return Icons.directions_car_outlined;
-      case 'Rent':
-        return Icons.home_outlined;
-      case 'Groceries':
-        return Icons.shopping_cart_outlined;
-      default:
-        return Icons.movie_outlined;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Categories
-  // ---------------------------------------------------------------------------
 
   Widget _buildCategories() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _categoryPill('🎬', 'Movies'),
-            const SizedBox(width: 7),
-            _categoryPill('🍕', 'Food'),
-            const SizedBox(width: 7),
-            _categoryPill('🚕', 'Transport'),
-            const SizedBox(width: 7),
-            _categoryPill('🏠', 'Rent'),
-            const SizedBox(width: 7),
-            _categoryPill('🛒', 'Groceries'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Paid By
-  // ---------------------------------------------------------------------------
-
-  Widget _buildPaidBy() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Paid by',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: onSurface,
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: _showPayerPicker,
-                child: const Text(
-                  'Tap to change payer',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: outline,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                ...widget.members.map(
-                  (member) => Padding(
-                    padding: const EdgeInsets.only(right: 7),
-                    child: _payerPill(member),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _showPayerPicker,
-                  child: Container(
-                    height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: surfaceLow,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.group_add_outlined,
-                          size: 19,
-                          color: outline,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Multiple',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Split Summary
-  // ---------------------------------------------------------------------------
-
-  Widget _buildSplitSummary() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        color: surfaceLow,
-        borderRadius: BorderRadius.circular(26),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              color: secondaryContainer.withValues(alpha: .5),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.pie_chart_outline,
-                  color: primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${_money(_amount)} split equally among $_participantCount ${_participantCount == 1 ? 'person' : 'people'}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: secondaryContainer,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${_money(_equalShare)}/ea',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...widget.members.map(
-            (member) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _participantRow(member),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Save Section
-  // ---------------------------------------------------------------------------
-
-  Widget _buildSaveSection() {
-    String buttonText;
-
-    if (_isSaving) {
-      buttonText = 'Saving transaction...';
-    } else if (_saved) {
-      buttonText = 'Expense Logged!';
-    } else {
-      buttonText = 'Save Expense • ${_money(_amount)}';
-    }
-
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: _isSaving || _saved ? null : _saveExpense,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: double.infinity,
-            height: 58,
-            decoration: BoxDecoration(
-              color: _saved ? primaryContainer : primary,
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: .10),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _isSaving
-                      ? Icons.sync
-                      : _saved
-                          ? Icons.celebration_outlined
-                          : Icons.check_circle_outline,
-                  color: Colors.white,
-                  size: 23,
-                ),
-                const SizedBox(width: 9),
-                Text(
-                  buttonText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'All $_participantCount participants will receive an instant notification.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 12,
+        const Text(
+          'CATEGORY',
+          style: TextStyle(
+            fontSize: 11,
+            letterSpacing: 0.8,
+            fontWeight: FontWeight.w600,
             color: outline,
           ),
         ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _categoryPill('🍔', 'Food'),
+              const SizedBox(width: 8),
+              _categoryPill('🎬', 'Movies'),
+              const SizedBox(width: 8),
+              _categoryPill('✈️', 'Travel'),
+              const SizedBox(width: 8),
+              _categoryPill('🚗', 'Transport'),
+              const SizedBox(width: 8),
+              _categoryPill('🏠', 'Home'),
+              const SizedBox(width: 8),
+              _categoryPill('🛍️', 'Shopping'),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildPaidBy() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'PAID BY',
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+                color: outline,
+              ),
+            ),
+            GestureDetector(
+              onTap: _showPayerPicker,
+              child: const Text(
+                'Change payer',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _effectiveMembers.map((m) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _payerPill(m),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSplitSummary() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'SPLIT EQUALLY BETWEEN',
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+                color: outline,
+              ),
+            ),
+            Text(
+              '$_participantCount of ${_effectiveMembers.length} people',
+              style: const TextStyle(
+                fontSize: 12,
+                color: outline,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ..._effectiveMembers.map((m) => _participantRow(m)),
+      ],
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: _isSaving ? null : _saveExpense,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: _isSaving
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            : const Text(
+                'Save Expense',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+      ),
     );
   }
 }
