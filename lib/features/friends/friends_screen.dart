@@ -53,12 +53,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
     _loadFriends();
   }
 
-  Future<void> _loadFriends() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadFriends({bool forceRefresh = false}) async {
+    if (_friends.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
-    final friends = await _friendRepository.getFriends();
+    final friends = await _friendRepository.getFriends(forceRefresh: forceRefresh);
 
     if (!mounted) return;
     setState(() {
@@ -531,7 +533,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadFriends,
+        onRefresh: () => _loadFriends(forceRefresh: true),
         color: primary,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: primary))

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/profile.dart';
+import '../services/cache_service.dart';
 import '../services/supabase_service.dart';
 
 class FriendBalanceItem {
@@ -28,6 +29,7 @@ class FriendBalanceItem {
 
 class FriendRepository {
   final SupabaseService _supabaseService = SupabaseService();
+  final CacheService _cacheService = CacheService();
 
   static const List<Color> _avatarColors = [
     Color(0xFFBFA77D),
@@ -39,8 +41,14 @@ class FriendRepository {
     Color(0xFF456179),
   ];
 
-  /// Fetches all friends with pairwise calculated balances and shared group names
-  Future<List<FriendBalanceItem>> getFriends() async {
+  /// Fetches all friends with pairwise calculated balances and shared group names with Cache-First support
+  Future<List<FriendBalanceItem>> getFriends({bool forceRefresh = false}) async {
+    const cacheKey = 'friends_list';
+    if (!forceRefresh) {
+      final cached = _cacheService.get<List<FriendBalanceItem>>(cacheKey);
+      if (cached != null) return cached;
+    }
+
     try {
       final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
 
@@ -183,6 +191,7 @@ class FriendRepository {
         colorIndex++;
       }
 
+      _cacheService.set('friends_list', friends);
       return friends;
     } catch (e) {
       debugPrint('Error getting friends: $e');
@@ -227,6 +236,9 @@ class FriendRepository {
     } catch (e) {
       debugPrint('Note on joining group for new friend: $e');
     }
+
+    _cacheService.invalidateFriends();
+    _cacheService.invalidateGroups();
 
     return newProfile;
   }
@@ -273,5 +285,9 @@ class FriendRepository {
         'created_at': DateTime.now().toIso8601String(),
       });
     }
+
+    _cacheService.invalidateFriends();
+    _cacheService.invalidateGroup(sharedGroupId);
+    _cacheService.invalidateActivities();
   }
 }

@@ -49,13 +49,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadData({bool forceRefresh = false}) async {
+    if (_groups.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
-    final groups = await _groupRepository.getGroups();
-    final expenses = await _expenseRepository.getRecentExpenses(limit: 5);
+    final groups = await _groupRepository.getGroups(forceRefresh: forceRefresh);
+    final expenses = await _expenseRepository.getRecentExpenses(limit: 5, forceRefresh: forceRefresh);
 
     if (!mounted) return;
     setState(() {
@@ -118,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: _loadData,
+            onPressed: () => _loadData(forceRefresh: true),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh data',
           ),
@@ -135,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Body
       // ----------------------------------------------------------
       body: RefreshIndicator(
-        onRefresh: _loadData,
+        onRefresh: () => _loadData(forceRefresh: true),
         color: primary,
         child: _isLoading
             ? const Center(

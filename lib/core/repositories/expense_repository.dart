@@ -1,20 +1,36 @@
 import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
+import '../services/cache_service.dart';
 import '../services/supabase_service.dart';
 
 class ExpenseRepository {
   final SupabaseService _supabaseService = SupabaseService();
+  final CacheService _cacheService = CacheService();
 
-  /// Fetches all expenses for a particular group
-  Future<List<Expense>> getExpensesByGroup(String groupId) async {
+  /// Fetches paginated expenses for a particular group with caching support
+  Future<List<Expense>> getExpensesByGroup(
+    String groupId, {
+    int limit = 20,
+    int offset = 0,
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = 'expenses_group_${groupId}_${offset}_$limit';
+    if (!forceRefresh) {
+      final cached = _cacheService.get<List<Expense>>(cacheKey);
+      if (cached != null) return cached;
+    }
+
     try {
       final response = await _supabaseService.client
           .from('expenses')
           .select('*, profiles!paid_by(*), groups(name), expense_participants(*, profiles!user_id(*))')
           .eq('group_id', groupId)
-          .order('expense_date', ascending: false);
+          .order('expense_date', ascending: false)
+          .range(offset, offset + limit - 1);
 
-      return (response as List).map((json) => Expense.fromJson(json as Map<String, dynamic>)).toList();
+      final results = (response as List).map((json) => Expense.fromJson(json as Map<String, dynamic>)).toList();
+      _cacheService.set(cacheKey, results);
+      return results;
     } catch (e) {
       debugPrint('Error with joined expenses query: $e. Falling back to base query.');
       try {
@@ -22,7 +38,8 @@ class ExpenseRepository {
             .from('expenses')
             .select()
             .eq('group_id', groupId)
-            .order('expense_date', ascending: false);
+            .order('expense_date', ascending: false)
+            .range(offset, offset + limit - 1);
 
         final List<Expense> results = [];
         for (final expJson in expResponse) {
@@ -44,6 +61,7 @@ class ExpenseRepository {
 
           results.add(Expense.fromJson(expMap));
         }
+        _cacheService.set(cacheKey, results);
         return results;
       } catch (fallbackErr) {
         debugPrint('Fallback expense fetch failed: $fallbackErr');
@@ -52,16 +70,28 @@ class ExpenseRepository {
     }
   }
 
-  /// Fetches recent expenses across all user's groups
-  Future<List<Expense>> getRecentExpenses({int limit = 10}) async {
+  /// Fetches recent expenses across all user's groups with pagination and caching
+  Future<List<Expense>> getRecentExpenses({
+    int limit = 10,
+    int offset = 0,
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = 'recent_expenses_${offset}_$limit';
+    if (!forceRefresh) {
+      final cached = _cacheService.get<List<Expense>>(cacheKey);
+      if (cached != null) return cached;
+    }
+
     try {
       final response = await _supabaseService.client
           .from('expenses')
           .select('*, profiles!paid_by(*), groups(name), expense_participants(*, profiles!user_id(*))')
           .order('expense_date', ascending: false)
-          .limit(limit);
+          .range(offset, offset + limit - 1);
 
-      return (response as List).map((json) => Expense.fromJson(json as Map<String, dynamic>)).toList();
+      final results = (response as List).map((json) => Expense.fromJson(json as Map<String, dynamic>)).toList();
+      _cacheService.set(cacheKey, results);
+      return results;
     } catch (e) {
       debugPrint('Error fetching recent expenses with join: $e');
       try {
@@ -69,7 +99,7 @@ class ExpenseRepository {
             .from('expenses')
             .select('*, groups(name)')
             .order('expense_date', ascending: false)
-            .limit(limit);
+            .range(offset, offset + limit - 1);
 
         final List<Expense> results = [];
         for (final expJson in expResponse) {
@@ -83,6 +113,7 @@ class ExpenseRepository {
           if (payerRes != null) expMap['profiles'] = payerRes;
           results.add(Expense.fromJson(expMap));
         }
+        _cacheService.set(cacheKey, results);
         return results;
       } catch (err) {
         debugPrint('Fallback recent expenses failed: $err');
@@ -138,6 +169,10 @@ class ExpenseRepository {
           .insert(participantsData);
     }
 
+    // Invalidate affected caches immediately
+    _cacheService.invalidateGroup(groupId);
+    _cacheService.invalidateActivities();
+
     final fullExpense = await _supabaseService.client
         .from('expenses')
         .select('*, profiles!paid_by(*), groups(name), expense_participants(*, profiles!user_id(*))')
@@ -152,7 +187,7 @@ class ExpenseRepository {
   }
 
   /// Deletes an expense and cascade removes its participants
-  Future<void> deleteExpense(String expenseId) async {
+  Future<void> deleteExpense(String expenseId, {String? groupId}) async {
     await _supabaseService.client
         .from('expense_participants')
         .delete()
@@ -162,5 +197,12 @@ class ExpenseRepository {
         .from('expenses')
         .delete()
         .eq('id', expenseId);
+
+    if (groupId != null) {
+      _cacheService.invalidateGroup(groupId);
+    } else {
+      _cacheService.invalidateGroups();
+    }
+    _cacheService.invalidateActivities();
   }
 }

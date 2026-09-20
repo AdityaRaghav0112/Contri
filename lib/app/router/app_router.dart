@@ -132,23 +132,28 @@ class _AppRouterState extends State<AppRouter> {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               selected ? selectedIcon : icon,
               color: Colors.white,
-              size: 21,
+              size: 20,
             ),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: selected
-                    ? FontWeight.w600
-                    : FontWeight.w400,
+            if (selected) ...[
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

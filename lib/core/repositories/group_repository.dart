@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart';
 import '../models/group.dart';
 import '../models/group_member.dart';
 import '../models/profile.dart';
+import '../services/cache_service.dart';
 import '../services/supabase_service.dart';
 
 class GroupRepository {
   final SupabaseService _supabaseService = SupabaseService();
+  final CacheService _cacheService = CacheService();
 
   static const String _groupEmbeddedSelect = '''
     *,
@@ -21,12 +23,20 @@ class GroupRepository {
   ''';
 
   /// Fetches all groups with computed total spend, member lists, and user net balance
-  /// in a SINGLE embedded query (Solution 1).
-  Future<List<Group>> getGroups() async {
+  /// in a SINGLE embedded query with Cache-First support.
+  Future<List<Group>> getGroups({bool forceRefresh = false}) async {
+    // 1. Check cache first if not forcing refresh
+    if (!forceRefresh) {
+      final cached = _cacheService.get<List<Group>>('groups_list');
+      if (cached != null) {
+        return cached;
+      }
+    }
+
     try {
       final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
 
-      // 1. Fetch groups with embedded members, expenses, and settlements in 1 request
+      // 2. Fetch groups with embedded members, expenses, and settlements in 1 request
       final groupsRes = await _supabaseService.client
           .from('groups')
           .select(_groupEmbeddedSelect)
@@ -34,13 +44,21 @@ class GroupRepository {
 
       final List<Group> groups = [];
       for (final gJson in groupsRes as List) {
-        groups.add(_parseGroupFromJson(gJson as Map<String, dynamic>, currentUserId));
+        final parsed = _parseGroupFromJson(gJson as Map<String, dynamic>, currentUserId);
+        groups.add(parsed);
+        // Cache individual group as well
+        _cacheService.set('group_details_${parsed.id}', parsed);
       }
+
+      // Update groups list in cache
+      _cacheService.set('groups_list', groups);
 
       return groups;
     } catch (e) {
       debugPrint('Error getting groups with embedded query: $e. Falling back to sequential queries.');
-      return _getGroupsSequentialFallback();
+      final fallbackGroups = await _getGroupsSequentialFallback();
+      _cacheService.set('groups_list', fallbackGroups);
+      return fallbackGroups;
     }
   }
 
@@ -225,8 +243,13 @@ class GroupRepository {
     }
   }
 
-  /// Fetches a single group with full details using single-query embedding
-  Future<Group?> getGroupById(String groupId) async {
+  /// Fetches a single group with full details using single-query embedding with Cache-First support
+  Future<Group?> getGroupById(String groupId, {bool forceRefresh = false}) async {
+    if (!forceRefresh) {
+      final cached = _cacheService.get<Group>('group_details_$groupId');
+      if (cached != null) return cached;
+    }
+
     try {
       final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
 
@@ -237,14 +260,18 @@ class GroupRepository {
           .maybeSingle();
 
       if (res != null) {
-        return _parseGroupFromJson(res, currentUserId);
+        final parsed = _parseGroupFromJson(res, currentUserId);
+        _cacheService.set('group_details_$groupId', parsed);
+        return parsed;
       }
       return null;
     } catch (e) {
       debugPrint('Error getting group by id with embedding: $e');
-      final all = await getGroups();
+      final all = await getGroups(forceRefresh: forceRefresh);
       try {
-        return all.firstWhere((g) => g.id == groupId);
+        final match = all.firstWhere((g) => g.id == groupId);
+        _cacheService.set('group_details_$groupId', match);
+        return match;
       } catch (_) {
         return null;
       }
@@ -288,6 +315,9 @@ class GroupRepository {
     }).toList();
 
     await _supabaseService.client.from('group_members').insert(membersList);
+
+    // Invalidate group cache so next getGroups will fetch freshly created group
+    _cacheService.invalidateGroups();
 
     return Group.fromJson(res);
   }

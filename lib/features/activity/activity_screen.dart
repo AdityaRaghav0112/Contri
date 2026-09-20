@@ -56,12 +56,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
     _loadActivity();
   }
 
-  Future<void> _loadActivity() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadActivity({bool forceRefresh = false}) async {
+    if (_sections.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
-    final sections = await _activityRepository.getActivityFeed();
+    final sections = await _activityRepository.getActivityFeed(forceRefresh: forceRefresh);
 
     if (!mounted) return;
     setState(() {
@@ -408,7 +410,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
             ),
           ),
           IconButton(
-            onPressed: _loadActivity,
+            onPressed: () => _loadActivity(forceRefresh: true),
             icon: const Icon(Icons.refresh),
             iconSize: 22,
           ),
@@ -416,7 +418,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadActivity,
+        onRefresh: () => _loadActivity(forceRefresh: true),
         color: primary,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: primary))

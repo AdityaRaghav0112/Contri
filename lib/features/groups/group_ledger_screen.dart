@@ -70,6 +70,9 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
 
   int _selectedFilter = 0;
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMoreExpenses = true;
+  static const int _pageSize = 20;
 
   Group? _group;
   List<Expense> _expenses = [];
@@ -93,7 +96,7 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
     _loadGroupData();
   }
 
-  Future<void> _loadGroupData() async {
+  Future<void> _loadGroupData({bool forceRefresh = false}) async {
     setState(() {
       _isLoading = true;
     });
@@ -103,7 +106,7 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
     // 1. Find group if groupId is provided or search by name
     String? gId = widget.groupId;
     if (gId == null) {
-      final allGroups = await _groupRepository.getGroups();
+      final allGroups = await _groupRepository.getGroups(forceRefresh: forceRefresh);
       final match = allGroups.where((g) => g.name == widget.groupName).toList();
       if (match.isNotEmpty) {
         gId = match.first.id;
@@ -111,63 +114,97 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
     }
 
     if (gId != null) {
-      _group = await _groupRepository.getGroupById(gId);
-      _expenses = await _expenseRepository.getExpensesByGroup(gId);
-      _settlements = await _settlementRepository.getSettlementsByGroup(gId);
+      _group = await _groupRepository.getGroupById(gId, forceRefresh: forceRefresh);
+      _expenses = await _expenseRepository.getExpensesByGroup(
+        gId,
+        limit: _pageSize,
+        offset: 0,
+        forceRefresh: forceRefresh,
+      );
+      _hasMoreExpenses = _expenses.length >= _pageSize;
+      _settlements = await _settlementRepository.getSettlementsByGroup(gId, forceRefresh: forceRefresh);
 
       // Extract all member profiles from group
       _allGroupMembers = _group?.members.map((m) => m.profile).whereType<Profile>().toList() ?? [];
 
-      // Calculate member balances
-      final List<MemberGroupBalance> calculatedBalances = [];
-
-      for (final member in _allGroupMembers) {
-        if (member.id == currentUserId) continue;
-
-        double pairwiseNet = 0.0;
-
-        for (final exp in _expenses) {
-          final paidBy = exp.paidBy;
-          if (paidBy == currentUserId) {
-            for (final p in exp.participants) {
-              if (p.userId == member.id) {
-                pairwiseNet += p.shareAmount; // Member owes User
-              }
-            }
-          } else if (paidBy == member.id) {
-            for (final p in exp.participants) {
-              if (p.userId == currentUserId) {
-                pairwiseNet -= p.shareAmount; // User owes Member
-              }
-            }
-          }
-        }
-
-        // Adjust with settlements
-        for (final st in _settlements) {
-          if (st.fromUser == member.id && st.toUser == currentUserId) {
-            pairwiseNet -= st.amount;
-          } else if (st.fromUser == currentUserId && st.toUser == member.id) {
-            pairwiseNet += st.amount;
-          }
-        }
-
-        final bool isSettled = pairwiseNet.abs() < 0.01;
-        calculatedBalances.add(
-          MemberGroupBalance(
-            profile: member,
-            netBalance: pairwiseNet,
-            settled: isSettled,
-          ),
-        );
-      }
-
-      _memberBalances = calculatedBalances;
+      _recalculateMemberBalances(currentUserId);
     }
 
     if (!mounted) return;
     setState(() {
       _isLoading = false;
+    });
+  }
+
+  void _recalculateMemberBalances(String currentUserId) {
+    final List<MemberGroupBalance> calculatedBalances = [];
+
+    for (final member in _allGroupMembers) {
+      if (member.id == currentUserId) continue;
+
+      double pairwiseNet = 0.0;
+
+      for (final exp in _expenses) {
+        final paidBy = exp.paidBy;
+        if (paidBy == currentUserId) {
+          for (final p in exp.participants) {
+            if (p.userId == member.id) {
+              pairwiseNet += p.shareAmount;
+            }
+          }
+        } else if (paidBy == member.id) {
+          for (final p in exp.participants) {
+            if (p.userId == currentUserId) {
+              pairwiseNet -= p.shareAmount;
+            }
+          }
+        }
+      }
+
+      for (final st in _settlements) {
+        if (st.fromUser == member.id && st.toUser == currentUserId) {
+          pairwiseNet -= st.amount;
+        } else if (st.fromUser == currentUserId && st.toUser == member.id) {
+          pairwiseNet += st.amount;
+        }
+      }
+
+      final bool isSettled = pairwiseNet.abs() < 0.01;
+      calculatedBalances.add(
+        MemberGroupBalance(
+          profile: member,
+          netBalance: pairwiseNet,
+          settled: isSettled,
+        ),
+      );
+    }
+
+    _memberBalances = calculatedBalances;
+  }
+
+  Future<void> _loadMoreExpenses() async {
+    final gId = _group?.id ?? widget.groupId;
+    if (gId == null || _isLoadingMore || !_hasMoreExpenses) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    final nextBatch = await _expenseRepository.getExpensesByGroup(
+      gId,
+      limit: _pageSize,
+      offset: _expenses.length,
+    );
+
+    if (!mounted) return;
+
+    final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
+
+    setState(() {
+      _expenses.addAll(nextBatch);
+      _hasMoreExpenses = nextBatch.length >= _pageSize;
+      _isLoadingMore = false;
+      _recalculateMemberBalances(currentUserId);
     });
   }
 
@@ -966,6 +1003,37 @@ class _GroupLedgerScreenState extends State<GroupLedgerScreen> {
               ),
             );
           }),
+        if (_hasMoreExpenses)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            child: Center(
+              child: _isLoadingMore
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: primary,
+                      ),
+                    )
+                  : TextButton.icon(
+                      onPressed: _loadMoreExpenses,
+                      icon: const Icon(Icons.expand_more, size: 18),
+                      label: const Text('Load older transactions'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: primary,
+                        backgroundColor: surfaceContainerLow,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
       ],
     );
   }

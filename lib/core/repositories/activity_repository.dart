@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/cache_service.dart';
 import '../services/supabase_service.dart';
 import 'expense_repository.dart';
 import 'settlement_repository.dart';
@@ -55,9 +56,16 @@ class ActivityRepository {
   final SupabaseService _supabaseService = SupabaseService();
   final ExpenseRepository _expenseRepository = ExpenseRepository();
   final SettlementRepository _settlementRepository = SettlementRepository();
+  final CacheService _cacheService = CacheService();
 
-  /// Fetches a unified activity timeline from Supabase
-  Future<List<ActivitySection>> getActivityFeed() async {
+  /// Fetches a unified activity timeline from Supabase with Cache-First support
+  Future<List<ActivitySection>> getActivityFeed({bool forceRefresh = false}) async {
+    const cacheKey = 'activity_feed';
+    if (!forceRefresh) {
+      final cached = _cacheService.get<List<ActivitySection>>(cacheKey);
+      if (cached != null) return cached;
+    }
+
     final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
 
     final List<ActivityItem> allItems = [];
@@ -174,9 +182,12 @@ class ActivityRepository {
       grouped.putIfAbsent(period, () => []).add(item);
     }
 
-    return grouped.entries
+    final sections = grouped.entries
         .map((e) => ActivitySection(period: e.key, activities: e.value))
         .toList();
+
+    _cacheService.set('activity_feed', sections);
+    return sections;
   }
 
   int _daysBetween(DateTime from, DateTime to) {
