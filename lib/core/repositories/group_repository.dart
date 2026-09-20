@@ -7,12 +7,115 @@ import '../services/supabase_service.dart';
 class GroupRepository {
   final SupabaseService _supabaseService = SupabaseService();
 
+  static const String _groupEmbeddedSelect = '''
+    *,
+    group_members (
+      *,
+      profiles:user_id (*)
+    ),
+    expenses (
+      *,
+      expense_participants (*)
+    ),
+    settlements (*)
+  ''';
+
   /// Fetches all groups with computed total spend, member lists, and user net balance
+  /// in a SINGLE embedded query (Solution 1).
   Future<List<Group>> getGroups() async {
     try {
       final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
 
-      // 1. Fetch groups
+      // 1. Fetch groups with embedded members, expenses, and settlements in 1 request
+      final groupsRes = await _supabaseService.client
+          .from('groups')
+          .select(_groupEmbeddedSelect)
+          .order('created_at', ascending: false);
+
+      final List<Group> groups = [];
+      for (final gJson in groupsRes as List) {
+        groups.add(_parseGroupFromJson(gJson as Map<String, dynamic>, currentUserId));
+      }
+
+      return groups;
+    } catch (e) {
+      debugPrint('Error getting groups with embedded query: $e. Falling back to sequential queries.');
+      return _getGroupsSequentialFallback();
+    }
+  }
+
+  /// Parses a group JSON map containing embedded group_members, expenses, and settlements.
+  Group _parseGroupFromJson(Map<String, dynamic> gJson, String currentUserId) {
+    // 1. Parse members
+    final membersJson = (gJson['group_members'] as List? ?? []);
+    final List<GroupMember> members = membersJson
+        .map((m) => GroupMember.fromJson(m as Map<String, dynamic>))
+        .toList();
+
+    // 2. Parse expenses & compute spend + balance
+    final expensesJson = (gJson['expenses'] as List? ?? []);
+    double totalSpent = 0.0;
+    double userNetBalance = 0.0;
+
+    for (final exp in expensesJson) {
+      final amount = (exp['amount'] is num)
+          ? (exp['amount'] as num).toDouble()
+          : double.tryParse(exp['amount']?.toString() ?? '0') ?? 0.0;
+      totalSpent += amount;
+
+      final paidBy = exp['paid_by'] as String?;
+      final participants = (exp['expense_participants'] as List? ?? []);
+
+      double userShare = 0.0;
+      for (final p in participants) {
+        if (p['user_id'] == currentUserId) {
+          userShare = (p['share_amount'] is num)
+              ? (p['share_amount'] as num).toDouble()
+              : double.tryParse(p['share_amount']?.toString() ?? '0') ?? 0.0;
+        }
+      }
+
+      if (paidBy == currentUserId) {
+        // User paid total, user is owed (amount - user's own share)
+        userNetBalance += (amount - userShare);
+      } else {
+        // Someone else paid, user owes userShare
+        userNetBalance -= userShare;
+      }
+    }
+
+    // 3. Parse settlements & adjust userNetBalance
+    final settlementsJson = (gJson['settlements'] as List? ?? []);
+    for (final st in settlementsJson) {
+      final stAmount = (st['amount'] is num)
+          ? (st['amount'] as num).toDouble()
+          : double.tryParse(st['amount']?.toString() ?? '0') ?? 0.0;
+
+      if (st['from_user'] == currentUserId) {
+        // User paid back someone -> increases user's balance towards 0
+        userNetBalance += stAmount;
+      } else if (st['to_user'] == currentUserId) {
+        // Someone paid back user -> decreases what is owed to user
+        userNetBalance -= stAmount;
+      }
+    }
+
+    final bool settled = expensesJson.isNotEmpty && userNetBalance.abs() < 0.01;
+
+    return Group.fromJson(
+      gJson,
+      members: members,
+      totalSpent: totalSpent,
+      userNetBalance: userNetBalance,
+      settled: settled,
+    );
+  }
+
+  /// Sequential fallback in case embedded query fails
+  Future<List<Group>> _getGroupsSequentialFallback() async {
+    try {
+      final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
+
       final groupsRes = await _supabaseService.client
           .from('groups')
           .select()
@@ -23,7 +126,6 @@ class GroupRepository {
       for (final gJson in groupsRes) {
         final groupId = gJson['id'] as String;
 
-        // Fetch members for this group
         List<GroupMember> members = [];
         try {
           final membersRes = await _supabaseService.client
@@ -35,7 +137,6 @@ class GroupRepository {
               .map((m) => GroupMember.fromJson(m as Map<String, dynamic>))
               .toList();
         } catch (e) {
-          debugPrint('Error fetching group members: $e');
           final membersRes = await _supabaseService.client
               .from('group_members')
               .select()
@@ -54,7 +155,6 @@ class GroupRepository {
           }
         }
 
-        // Fetch expenses for this group
         final expensesRes = await _supabaseService.client
             .from('expenses')
             .select('*, expense_participants(*)')
@@ -82,15 +182,12 @@ class GroupRepository {
           }
 
           if (paidBy == currentUserId) {
-            // User paid total, user is owed (amount - user's own share)
             userNetBalance += (amount - userShare);
           } else {
-            // Someone else paid, user owes userShare
             userNetBalance -= userShare;
           }
         }
 
-        // Fetch settlements for this group
         final settlementsRes = await _supabaseService.client
             .from('settlements')
             .select()
@@ -102,10 +199,8 @@ class GroupRepository {
               : double.tryParse(st['amount']?.toString() ?? '0') ?? 0.0;
 
           if (st['from_user'] == currentUserId) {
-            // User paid back someone -> increases user's balance towards 0
             userNetBalance += stAmount;
           } else if (st['to_user'] == currentUserId) {
-            // Someone paid back user -> decreases what is owed to user
             userNetBalance -= stAmount;
           }
         }
@@ -125,18 +220,34 @@ class GroupRepository {
 
       return groups;
     } catch (e) {
-      debugPrint('Error getting groups: $e');
+      debugPrint('Error in sequential fallback: $e');
       return [];
     }
   }
 
-  /// Fetches a single group with full details
+  /// Fetches a single group with full details using single-query embedding
   Future<Group?> getGroupById(String groupId) async {
-    final all = await getGroups();
     try {
-      return all.firstWhere((g) => g.id == groupId);
-    } catch (_) {
+      final currentUserId = _supabaseService.currentProfile?.id ?? '00000000-0000-0000-0000-000000000001';
+
+      final res = await _supabaseService.client
+          .from('groups')
+          .select(_groupEmbeddedSelect)
+          .eq('id', groupId)
+          .maybeSingle();
+
+      if (res != null) {
+        return _parseGroupFromJson(res, currentUserId);
+      }
       return null;
+    } catch (e) {
+      debugPrint('Error getting group by id with embedding: $e');
+      final all = await getGroups();
+      try {
+        return all.firstWhere((g) => g.id == groupId);
+      } catch (_) {
+        return null;
+      }
     }
   }
 

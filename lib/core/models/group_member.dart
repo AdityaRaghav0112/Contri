@@ -28,9 +28,11 @@ class GroupMember {
       leftAt: json['left_at'] != null
           ? DateTime.parse(json['left_at'] as String)
           : null,
-      profile: json['profiles'] != null && json['profiles'] is Map<String, dynamic>
+      profile: (json['profiles'] != null && json['profiles'] is Map<String, dynamic>)
           ? Profile.fromJson(json['profiles'] as Map<String, dynamic>)
-          : null,
+          : (json['profile'] != null && json['profile'] is Map<String, dynamic>)
+              ? Profile.fromJson(json['profile'] as Map<String, dynamic>)
+              : null,
     );
   }
 
